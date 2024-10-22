@@ -37,7 +37,7 @@ local default_cache_folder = 'cache';
   "WANDB": {
     "CACHE_DIR":  wandb_cache_dir,
     "DIR": wandb_dir,
-    "entity": "",
+    "entity": "observer-wandb-seoul-national-university", // TODO: change this to your wandb entity
     "project": "TableQA_publication",
     "tags": [],
   },

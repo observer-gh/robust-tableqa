@@ -28,6 +28,7 @@ from pathlib import Path
 
 from tempfile import TemporaryDirectory, gettempdir
 
+
 def get_config_from_json(json_file):
     """
     Get the config from a json file
@@ -46,11 +47,12 @@ def get_config_from_json(json_file):
         print("INVALID JSON file.. Please provide a good json file")
         exit(-1)
 
+
 def process_config(args):
-    
+
     script_dir = os.path.dirname(os.path.realpath('__file__'))
     path = Path(script_dir)
-    
+
     config, _ = get_config_from_json(args.config)
 
     # Some default paths
@@ -62,10 +64,9 @@ def process_config(args):
         config.EXPERIMENT_FOLDER = os.path.join(str(path), 'Experiments')
     if not config.TENSORBOARD_FOLDER:
         # Default path
-        config.TENSORBOARD_FOLDER = os.path.join(str(path), 'Logs', 'logging_data')
+        config.TENSORBOARD_FOLDER = os.path.join(
+            str(path), 'Logs', 'logging_data')
 
-    
-    
     # Override config data using passed parameters
     config.reset = args.reset
     config.mode = args.mode
@@ -81,7 +82,7 @@ def process_config(args):
         config.test.batch_size = args.test_batch_size
     if args.test_evaluation_name:
         config.test.evaluation_name = args.test_evaluation_name
-    
+
     # if config.mode == "train":
     #     config.train.load_best_model = args.load_best_model
     #     config.train.load_model_path = args.load_model_path
@@ -97,17 +98,22 @@ def process_config(args):
     config = parse_optional_args(config, args)
 
     # Generated Paths
-    config.log_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name, config.mode)
-    config.experiment_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name)
-    config.saved_model_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name, "train", 'saved_model')
+    config.log_path = os.path.join(
+        config.EXPERIMENT_FOLDER, config.experiment_name, config.mode)
+    config.experiment_path = os.path.join(
+        config.EXPERIMENT_FOLDER, config.experiment_name)
+    config.saved_model_path = os.path.join(
+        config.EXPERIMENT_FOLDER, config.experiment_name, "train", 'saved_model')
     if config.mode == "train":
-        config.imgs_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name, "train", 'imgs')
+        config.imgs_path = os.path.join(
+            config.EXPERIMENT_FOLDER, config.experiment_name, "train", 'imgs')
     else:
         config.imgs_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name, "test",
                                         config.test.evaluation_name, 'imgs')
         config.results_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name, "test",
-                                        config.test.evaluation_name)
-    config.tensorboard_path = os.path.join(config.TENSORBOARD_FOLDER, config.experiment_name)
+                                           config.test.evaluation_name)
+    config.tensorboard_path = os.path.join(
+        config.TENSORBOARD_FOLDER, config.experiment_name)
     config.WANDB.tags = config.WANDB.tags + args.tags
 
     # change args to dict, and save to config
@@ -119,6 +125,7 @@ def process_config(args):
     config.args = namespace_to_dict(args)
     return config
 
+
 def parse_optional_args(config, args):
     """Parse optional arguments and override the config file
 
@@ -129,8 +136,13 @@ def parse_optional_args(config, args):
     Returns:
         config: updated config dict
     """
+
+    opts = args.opts
+
+    if opts is None:
+        logging.warning("opts is None, setting it to an empty list.")
+        opts = []
     
-    opts=args.opts
     for opt in opts:
         path, value = opt.split('=')
         try:
@@ -138,7 +150,7 @@ def parse_optional_args(config, args):
         except:
             value = str(value)
             print('input value {} is not a number, parse to string.')
-        
+
         config_path_list = path.split('.')
         depth = len(config_path_list)
         if depth == 1:
@@ -146,18 +158,25 @@ def parse_optional_args(config, args):
         elif depth == 2:
             config[config_path_list[0]][config_path_list[1]] = value
         elif depth == 3:
-            config[config_path_list[0]][config_path_list[1]][config_path_list[2]] = value
+            config[config_path_list[0]][config_path_list[1]
+                                        ][config_path_list[2]] = value
         elif depth == 4:
-            config[config_path_list[0]][config_path_list[1]][config_path_list[2]][config_path_list[3]] = value
+            config[config_path_list[0]][config_path_list[1]
+                                        ][config_path_list[2]][config_path_list[3]] = value
         elif depth == 5:
-            config[config_path_list[0]][config_path_list[1]][config_path_list[2]][config_path_list[3]][config_path_list[4]] = value
+            config[config_path_list[0]][config_path_list[1]][config_path_list[2]
+                                                             ][config_path_list[3]][config_path_list[4]] = value
         elif depth == 6:
-            config[config_path_list[0]][config_path_list[1]][config_path_list[2]][config_path_list[3]][config_path_list[4]][config_path_list[5]] = value
+            config[config_path_list[0]][config_path_list[1]][config_path_list[2]
+                                                             ][config_path_list[3]][config_path_list[4]][config_path_list[5]] = value
         elif depth == 7:
-            config[config_path_list[0]][config_path_list[1]][config_path_list[2]][config_path_list[3]][config_path_list[4]][config_path_list[5]][config_path_list[6]] = value
+            config[config_path_list[0]][config_path_list[1]][config_path_list[2]][config_path_list[3]
+                                                                                  ][config_path_list[4]][config_path_list[5]][config_path_list[6]] = value
         elif depth == 8:
-            config[config_path_list[0]][config_path_list[1]][config_path_list[2]][config_path_list[3]][config_path_list[4]][config_path_list[5]][config_path_list[6]][config_path_list[7]] = value
+            config[config_path_list[0]][config_path_list[1]][config_path_list[2]][config_path_list[3]
+                                                                                  ][config_path_list[4]][config_path_list[5]][config_path_list[6]][config_path_list[7]] = value
         else:
-            raise('Support up to depth=8. Please do not hierarchy the config file too deep.')
-            
+            raise (
+                'Support up to depth=8. Please do not hierarchy the config file too deep.')
+
     return config

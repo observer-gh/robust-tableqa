@@ -58,6 +58,10 @@ class DataLoaderForTableQA(DataLoaderWrapper):
             # We set it here to avoid cuda errors
             self.tokenizer.max_row_id = 256
         
+        if self.config.mode in ['create_data']:
+            self.tokenizer = None
+            self.decoder_tokenizer = None
+            self.feature_extractor = None
 
     def LoadWikiTQData(self, module_config):
         '''
@@ -1694,7 +1698,8 @@ class DataLoaderForTableQA(DataLoaderWrapper):
                 #     break
 
                 # self.datasets[mode][f"{mode}/{dataset_type}.{use_split}"] = dataset
-                self.data_loaders[mode][f"{mode}/{dataset_type}.{use_split}"] = data_loader
+                if self.config.mode not in ['create_data']:
+                    self.data_loaders[mode][f"{mode}/{dataset_type}.{use_split}"] = data_loader
 
                 logger.info(f'[Data Statistics]: {mode} data loader: {mode}/{dataset_type}.{use_split} {len(data_loader)}')
     
