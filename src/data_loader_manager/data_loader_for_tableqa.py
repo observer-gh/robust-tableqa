@@ -1529,12 +1529,13 @@ class DataLoaderForTableQA(DataLoaderWrapper):
 
         datasets = {}
 
-        if self.data.e2e_wtq_data.get('bm25_results', None) is None:
-            bm25_results_path = os.path.join(self.config.DATA_FOLDER, module_config.config.bm25_results)
-            if not os.path.exists(bm25_results_path):
-                raise Exception("Please generate BM25 results first.")
-            with open(bm25_results_path, 'r') as bm25_results_file:
-                bm25_results = json.load(bm25_results_file)
+        # bm25 result is not needed: https://github.com/amazon-science/robust-tableqa/issues/3#issuecomment-1867822889
+        # if self.data.e2e_wtq_data.get('bm25_results', None) is None:
+        #     bm25_results_path = os.path.join(self.config.DATA_FOLDER, module_config.config.bm25_results)
+        #     if not os.path.exists(bm25_results_path):
+        #         raise Exception("Please generate BM25 results first.")
+        #     with open(bm25_results_path, 'r') as bm25_results_file:
+        #         bm25_results = json.load(bm25_results_file)
         
         for split, split_path in module_config.config.data_path.items():
             split_path = os.path.join(self.config.DATA_FOLDER, split_path)
