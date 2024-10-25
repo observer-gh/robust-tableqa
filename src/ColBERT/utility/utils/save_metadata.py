@@ -52,10 +52,9 @@ def get_metadata(args):
 
 
 def format_metadata(metadata):
+    assert type(metadata) == dict
 
-
-assert isinstance(metadata,     assert )
-return ujson.dumps(metadata, indent=4)
+    return ujson.dumps(metadata, indent=4)
 
 
 def save_metadata(path, args):

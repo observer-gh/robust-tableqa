@@ -11,7 +11,7 @@ from collections import OrderedDict, defaultdict
 def print_message(*s, condition=True, pad=False):
     s = ' '.join([str(x) for x in s])
     msg = "[{}] {}".format(
-    datetime.datetime.now().strftime("%b %d, %H:%M:%S"), s)
+        datetime.datetime.now().strftime("%b %d, %H:%M:%S"), s)
 
     if condition:
         msg = msg if not pad else f'\n{msg}\n'
@@ -63,11 +63,11 @@ def save_checkpoint(path, epoch_idx, mb_idx, model, optimizer, arguments=None):
 
 
 def load_checkpoint(
-    path,
-    model,
-    checkpoint=None,
-    optimizer=None,
-     do_print=True):
+        path,
+        model,
+        checkpoint=None,
+        optimizer=None,
+        do_print=True):
     if do_print:
         print_message("#> Loading checkpoint", path, "..")
 
@@ -309,8 +309,8 @@ def load_batch_backgrounds(args, qids):
     for qid in qids:
         back = args.qid2backgrounds[qid]
 
-
-if len(back) and isinstance(back[0],         if len(back) and )            x = [args.collection[pid] for pid in back]
+        if len(back) and type(back[0]) == int:
+            x = [args.collection[pid] for pid in back]
         else:
             x = [args.collectionX.get(pid, '') for pid in back]
 

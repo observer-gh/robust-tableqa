@@ -53,9 +53,9 @@ class ModuleParser():
         return return_dict
 
     def TAPASSpecificInput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> EasyDict:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> EasyDict:
         """
         Add data relevant for TAPAS tokenization to the sample
         """
@@ -70,9 +70,9 @@ class ModuleParser():
         return return_dict
 
     def TextBasedVisionInput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> Optional[EasyDict]:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> Optional[EasyDict]:
         """
         Default TextBasedVisionInput module parser
         object: text-based objects, with attributes and OCR'ed texts
@@ -92,9 +92,9 @@ class ModuleParser():
                     # find suitable attributes
                     suitable_attributes = []
                     for attribute, att_score in zip(
-    obj['attributes'], obj['attribute_scores']):
+                            obj['attributes'], obj['attribute_scores']):
                         if att_score > module.attribute_thres and len(
-                            suitable_attributes) < attribute_max:
+                                suitable_attributes) < attribute_max:
                             suitable_attributes.append(attribute)
                     # append to the sentence
                     vision_sentences += suitable_attributes
@@ -126,9 +126,9 @@ class ModuleParser():
         return return_dict
 
     def GenerationOutput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> Optional[EasyDict]:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> Optional[EasyDict]:
         """
         Parse the default generation output from gold_answer
         """
@@ -140,9 +140,9 @@ class ModuleParser():
         return return_dict
 
     def KnowledgeInput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> Optional[EasyDict]:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> Optional[EasyDict]:
         """
         Parse the knowledge input
         """
@@ -154,9 +154,9 @@ class ModuleParser():
         return return_dict
 
     def SimilarityOutput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> Optional[EasyDict]:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> Optional[EasyDict]:
         """
         Generate the similarity output
         """
@@ -168,9 +168,9 @@ class ModuleParser():
         return return_dict
 
     def TableInput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> Optional[EasyDict]:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> Optional[EasyDict]:
         """
         Transform table input to pd.DataFrame
         """
@@ -189,9 +189,9 @@ class ModuleParser():
         return return_dict
 
     def TextBasedTableInput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> Optional[EasyDict]:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> Optional[EasyDict]:
         """
         Serialise a table into a sentence
         "separation_tokens": {"header_start": "<HEADER>", "header_sep": "<HEADER_SEP>", "header_end": "<HEADER_END>", "row_start": "<ROW>", "row_sep": "<ROW_SEP>", "row_end": "<ROW_END>"}
@@ -225,9 +225,9 @@ class ModuleParser():
         return return_dict
 
     def FlattenedAnswerOutput(
-    self,
-    sample: EasyDict,
-     module: EasyDict) -> Optional[EasyDict]:
+            self,
+            sample: EasyDict,
+            module: EasyDict) -> Optional[EasyDict]:
         """
         Generate the flattened answer
         Serialise answers, separated by comma
@@ -296,19 +296,17 @@ class ModuleParser():
                 if key not in processed_data:
                     processed_data[key] = value
                 else:
-
-
-if isinstance(value,                     if )                        # automatically concatenate strings with the same key
+                    if type(value) == str:
+                        # automatically concatenate strings with the same key
                         processed_data[key] += ' ' + value
                     else:
                         raise TypeError(
-    "Undefined processing type: {}".format(
-        type(value)))
+                            "Undefined processing type: {}".format(type(value)))
 
         return processed_data
 
     def PostProcessTAPEXInputTokenization(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for TAPEX-like input tokenization
         Use TAPEX's tokenizer to tokenize inputs
@@ -323,21 +321,21 @@ if isinstance(value,                     if )                        # automatic
         task_prefix = ""
         if self.mode == 'train':
             encoding = self.tokenizer(
-    table=tables,
-    query=text_sequences,
-    answer=answers,
-    max_length=self.config.data_loader.additional.max_source_length,
-    padding='longest',
-    truncation=True,
-     return_tensors="pt" )
+                table=tables,
+                query=text_sequences,
+                answer=answers,
+                max_length=self.config.data_loader.additional.max_source_length,
+                padding='longest',
+                truncation=True,
+                return_tensors="pt")
         else:
             encoding = self.tokenizer(
-    table=tables,
-    query=text_sequences,
-    max_length=self.config.data_loader.additional.max_source_length,
-    padding='longest',
-    truncation=True,
-     return_tensors="pt" )
+                table=tables,
+                query=text_sequences,
+                max_length=self.config.data_loader.additional.max_source_length,
+                padding='longest',
+                truncation=True,
+                return_tensors="pt")
 
         data_to_process.update({
             'input_ids': encoding.input_ids,
@@ -347,7 +345,7 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessTAPEXOutputTokenization(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for TAPEX-like output tokenization
         Use TAPEX's tokenizer to tokenize outputs
@@ -369,8 +367,8 @@ if isinstance(value,                     if )                        # automatic
             target_encoding.attention_mask)  # For teacher force training
 
         # replace padding token id's of the labels by -100
-        labels = [ [(label if label != self.decoder_tokenizer.pad_token_id else -100)
-                     for label in labels_example] for labels_example in labels ]
+        labels = [[(label if label != self.decoder_tokenizer.pad_token_id else -100)
+                   for label in labels_example] for labels_example in labels]
 
         labels = torch.LongTensor(labels)
         assert labels.shape == output_sequence_ids.shape
@@ -384,7 +382,7 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessTAPASInputTokenization(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for TAPAS-like input tokenization
         Use TAPAS's tokenizer to tokenize inputs
@@ -464,7 +462,7 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessInputTokenization(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for input tokenization
         """
@@ -472,13 +470,13 @@ if isinstance(value,                     if )                        # automatic
         text_sequences = data_to_process.pop('text_sequence')
         task_prefix = ""
         encoding = self.tokenizer(
-    [
-        task_prefix +
-        sequence for sequence in text_sequences],
-        padding='longest',
-        max_length=self.config.data_loader.additional.max_source_length,
-        truncation=True,
-         return_tensors="pt")
+            [
+                task_prefix +
+                sequence for sequence in text_sequences],
+            padding='longest',
+            max_length=self.config.data_loader.additional.max_source_length,
+            truncation=True,
+            return_tensors="pt")
         data_to_process.update({
             'input_ids': encoding.input_ids,
             'attention_mask': encoding.attention_mask,
@@ -487,19 +485,19 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessDecoderInputTokenization(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for decoder input tokenization
         """
         assert 'text_sequence' in data_to_process.keys()
         text_sequences = data_to_process.pop('text_sequence')
         encoding = self.decoder_tokenizer(
-    [
-        sequence for sequence in text_sequences],
-        padding='longest',
-        max_length=self.config.data_loader.additional.max_decoder_source_length,
-        truncation=True,
-         return_tensors="pt")
+            [
+                sequence for sequence in text_sequences],
+            padding='longest',
+            max_length=self.config.data_loader.additional.max_decoder_source_length,
+            truncation=True,
+            return_tensors="pt")
         data_to_process.update({
             'decoder_input_ids': encoding.input_ids,
             'decoder_input_attention_mask': encoding.attention_mask,
@@ -508,17 +506,17 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessOutputTokenization(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for output tokenization
         """
         assert 'text_sequence' in data_to_process.keys()
         text_sequences = data_to_process.pop('text_sequence')
         target_encoding = self.decoder_tokenizer(
-    text_sequences,
-    padding='longest',
-    max_length=self.config.data_loader.additional.max_target_length,
-     truncation=True)
+            text_sequences,
+            padding='longest',
+            max_length=self.config.data_loader.additional.max_target_length,
+            truncation=True)
         labels = target_encoding.input_ids
         output_sequence_ids = target_encoding.input_ids  # For teacher force training
         output_sequence_ids = torch.LongTensor(output_sequence_ids)
@@ -526,8 +524,8 @@ if isinstance(value,                     if )                        # automatic
             target_encoding.attention_mask)  # For teacher force training
 
         # replace padding token id's of the labels by -100
-        labels = [ [(label if label != self.decoder_tokenizer.pad_token_id else -100)
-                     for label in labels_example] for labels_example in labels ]
+        labels = [[(label if label != self.decoder_tokenizer.pad_token_id else -100)
+                   for label in labels_example] for labels_example in labels]
 
         labels = torch.LongTensor(labels)
         assert labels.shape == output_sequence_ids.shape
@@ -541,7 +539,7 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessConcatenateLabels(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for concatenating labels
         """
@@ -556,7 +554,7 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessColBERTQuestionInputTokenization(
-        self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for input tokenization
         """
@@ -575,7 +573,7 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def PostProcessColBERTItemInputTokenization(
-    self, data_to_process: EasyDict) -> EasyDict:
+            self, data_to_process: EasyDict) -> EasyDict:
         """
         Post-processing for decoder input tokenization
         """
@@ -591,9 +589,9 @@ if isinstance(value,                     if )                        # automatic
         return data_to_process
 
     def post_processing(
-    self,
-    processed_batch_data: EasyDict,
-    postprocess_modules: Optional[EasyDict] = None,
+        self,
+        processed_batch_data: EasyDict,
+        postprocess_modules: Optional[EasyDict] = None,
     ) -> EasyDict:
         """
         Post-processing the processed data of the whole batch

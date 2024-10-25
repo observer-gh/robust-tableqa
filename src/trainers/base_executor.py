@@ -43,11 +43,11 @@ class BaseExecutor(pl.LightningModule, MetricsProcessor):
         self.config = config
         self.data_loader = data_loader
         self.train_dataloaders = list(
-    self.data_loader.data_loaders['train'].values())
+            self.data_loader.data_loaders['train'].values())
         self.valid_dataloaders = list(
-    self.data_loader.data_loaders['valid'].values())
+            self.data_loader.data_loaders['valid'].values())
         self.test_dataloaders = list(
-    self.data_loader.data_loaders['test'].values())
+            self.data_loader.data_loaders['test'].values())
 
         logger.info(f'Initializing {self.__class__.__name__}...')
 
@@ -65,13 +65,14 @@ class BaseExecutor(pl.LightningModule, MetricsProcessor):
         set loggers as class attributes for easy access
         """
         for trainer_logger in self.trainer.loggers:
-
-
-if isinstance(trainer_logger,             if )                self.tb_logger = trainer_logger
-elif isinstance(trainer_logger,             elif )                self.wandb_logger = trainer_logger
+            if type(trainer_logger) == TensorBoardLogger:
+                self.tb_logger = trainer_logger
+            elif type(trainer_logger) == WandbLogger:
+                self.wandb_logger = trainer_logger
                 self.wandb_logger.watch(
-    self.model, log_freq=500, log_graph=False)
-elif isinstance(trainer_logger,             elif )                self.metrics_history_logger = trainer_logger
+                    self.model, log_freq=500, log_graph=False)
+            elif type(trainer_logger) == MetricsHistoryLogger:
+                self.metrics_history_logger = trainer_logger
             else:
                 logger.warning(
                     f'Unsupported logger type: {type(trainer_logger)}')
@@ -84,19 +85,19 @@ elif isinstance(trainer_logger,             elif )                self.metrics_h
             if metric_name in ['epoch', 'loss_step', 'loss_epoch', 'loss']:
                 continue
             if len(metric_values) > 0 and type(
-                metric_values[0]) in [float, int, np.float64]:
+                    metric_values[0]) in [float, int, np.float64]:
                 self.log(
-    f'{metric_name}_auto_max',
-    float(
-        max(metric_values)),
-        on_step=False,
-         on_epoch=True)
+                    f'{metric_name}_auto_max',
+                    float(
+                        max(metric_values)),
+                    on_step=False,
+                    on_epoch=True)
                 self.log(
-    f'{metric_name}_auto_min',
-    float(
-        min(metric_values)),
-        on_step=False,
-         on_epoch=True)
+                    f'{metric_name}_auto_min',
+                    float(
+                        min(metric_values)),
+                    on_step=False,
+                    on_epoch=True)
 
     def on_train_epoch_end(self):
         if self.global_rank == 0:
@@ -112,20 +113,20 @@ elif isinstance(trainer_logger,             elif )                self.metrics_h
 
     def train_dataloader(self):
         self.train_dataloader_names = list(
-    self.data_loader.data_loaders['train'].keys())
+            self.data_loader.data_loaders['train'].keys())
 
         # TODO: we only allow one train data loader at the moment
         return self.train_dataloaders[0]
 
     def val_dataloader(self):
         self.val_dataloader_names = list(
-    self.data_loader.data_loaders['valid'].keys())
+            self.data_loader.data_loaders['valid'].keys())
 
         return self.valid_dataloaders
 
     def test_dataloader(self):
         self.test_dataloader_names = list(
-    self.data_loader.data_loaders['test'].keys())
+            self.data_loader.data_loaders['test'].keys())
 
         return self.test_dataloaders
 

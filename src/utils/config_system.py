@@ -54,7 +54,7 @@ def process_config(args):
     script_dir = os.path.dirname(os.path.realpath('__file__'))
     path = Path(script_dir)
 
-    config, _ = get_config_from_json(args.config)
+    config, _ = get_config_from_json(args.config)  # config from jsonnet file
 
     # Some default paths
     if not config.DATA_FOLDER:
