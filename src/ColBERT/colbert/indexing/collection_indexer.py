@@ -44,7 +44,9 @@ class CollectionIndexer():
         #     self.config.help()
 
         self.collection = Collection.cast(collection)
-        self.checkpoint = Checkpoint(self.config.checkpoint, colbert_config=self.config)
+        self.checkpoint = Checkpoint(
+            self.config.checkpoint,
+            colbert_config=self.config)
         if self.use_gpu:
             self.checkpoint = self.checkpoint.cuda()
 
@@ -78,11 +80,13 @@ class CollectionIndexer():
                 Run().print_main(f"#> Loaded plan from {self.plan_path}:")
                 Run().print_main(f"#> num_chunks = {self.num_chunks}")
                 Run().print_main(f"#> num_partitions = {self.num_chunks}")
-                Run().print_main(f"#> num_embeddings_est = {self.num_embeddings_est}")
+                Run().print_main(
+                    f"#> num_embeddings_est = {self.num_embeddings_est}")
                 Run().print_main(f"#> avg_doclen_est = {self.avg_doclen_est}")
                 return
 
-        self.num_chunks = int(np.ceil(len(self.collection) / self.collection.get_chunksize()))
+        self.num_chunks = int(
+            np.ceil(len(self.collection) / self.collection.get_chunksize()))
 
         sampled_pids = self._sample_pids()
         avg_doclen_est = self._sample_embeddings(sampled_pids)
@@ -90,10 +94,12 @@ class CollectionIndexer():
         # Select the number of partitions
         num_passages = len(self.collection)
         self.num_embeddings_est = num_passages * avg_doclen_est
-        self.num_partitions = int(2 ** np.floor(np.log2(16 * np.sqrt(self.num_embeddings_est))))
+        self.num_partitions = int(
+            2 ** np.floor(np.log2(16 * np.sqrt(self.num_embeddings_est))))
 
         Run().print_main(f'Creaing {self.num_partitions:,} partitions.')
-        Run().print_main(f'*Estimated* {int(self.num_embeddings_est):,} embeddings.')
+        Run().print_main(
+            f'*Estimated* {int(self.num_embeddings_est):,} embeddings.')
 
         self._save_plan()
 
@@ -111,18 +117,22 @@ class CollectionIndexer():
         sampled_pids = min(1 + int(sampled_pids), num_passages)
 
         sampled_pids = random.sample(range(num_passages), sampled_pids)
-        Run().print_main(f"# of sampled PIDs = {len(sampled_pids)} \t sampled_pids[:3] = {sampled_pids[:3]}")
+        Run().print_main(
+            f"# of sampled PIDs = {len(sampled_pids)} \t sampled_pids[:3] = {sampled_pids[:3]}")
 
         return set(sampled_pids)
 
     def _sample_embeddings(self, sampled_pids):
         local_pids = self.collection.enumerate(rank=self.rank)
-        local_sample = [passage for pid, passage in local_pids if pid in sampled_pids]
+        local_sample = [
+            passage for pid,
+            passage in local_pids if pid in sampled_pids]
 
         local_sample_embs, doclens = self.encoder.encode_passages(local_sample)
 
         if torch.cuda.is_available():
-            self.num_sample_embs = torch.tensor([local_sample_embs.size(0)]).cuda()
+            self.num_sample_embs = torch.tensor(
+                [local_sample_embs.size(0)]).cuda()
             torch.distributed.all_reduce(self.num_sample_embs)
 
             avg_doclen_est = sum(doclens) / len(doclens) if doclens else 0
@@ -133,29 +143,38 @@ class CollectionIndexer():
             torch.distributed.all_reduce(nonzero_ranks)
         else:
             if torch.distributed.is_initialized():
-                self.num_sample_embs = torch.tensor([local_sample_embs.size(0)]).cpu()
+                self.num_sample_embs = torch.tensor(
+                    [local_sample_embs.size(0)]).cpu()
                 torch.distributed.all_reduce(self.num_sample_embs)
 
                 avg_doclen_est = sum(doclens) / len(doclens) if doclens else 0
                 avg_doclen_est = torch.tensor([avg_doclen_est]).cpu()
                 torch.distributed.all_reduce(avg_doclen_est)
 
-                nonzero_ranks = torch.tensor([float(len(local_sample) > 0)]).cpu()
+                nonzero_ranks = torch.tensor(
+                    [float(len(local_sample) > 0)]).cpu()
                 torch.distributed.all_reduce(nonzero_ranks)
             else:
-                self.num_sample_embs = torch.tensor([local_sample_embs.size(0)]).cpu()
+                self.num_sample_embs = torch.tensor(
+                    [local_sample_embs.size(0)]).cpu()
 
                 avg_doclen_est = sum(doclens) / len(doclens) if doclens else 0
                 avg_doclen_est = torch.tensor([avg_doclen_est]).cpu()
 
-                nonzero_ranks = torch.tensor([float(len(local_sample) > 0)]).cpu()
+                nonzero_ranks = torch.tensor(
+                    [float(len(local_sample) > 0)]).cpu()
 
         avg_doclen_est = avg_doclen_est.item() / nonzero_ranks.item()
         self.avg_doclen_est = avg_doclen_est
 
-        Run().print(f'avg_doclen_est = {avg_doclen_est} \t len(local_sample) = {len(local_sample):,}')
+        Run().print(
+            f'avg_doclen_est = {avg_doclen_est} \t len(local_sample) = {len(local_sample):,}')
 
-        torch.save(local_sample_embs.half(), os.path.join(self.config.index_path_, f'sample.{self.rank}.pt'))
+        torch.save(
+            local_sample_embs.half(),
+            os.path.join(
+                self.config.index_path_,
+                f'sample.{self.rank}.pt'))
 
         return avg_doclen_est
 
@@ -210,23 +229,33 @@ class CollectionIndexer():
         print_memory_stats(f'RANK:{self.rank}')
         del sample
 
-        bucket_cutoffs, bucket_weights, avg_residual = self._compute_avg_residual(centroids, heldout)
+        bucket_cutoffs, bucket_weights, avg_residual = self._compute_avg_residual(
+            centroids, heldout)
 
         print_message(f'avg_residual = {avg_residual}')
 
-        codec = ResidualCodec(config=self.config, centroids=centroids, avg_residual=avg_residual,
-                              bucket_cutoffs=bucket_cutoffs, bucket_weights=bucket_weights)
+        codec = ResidualCodec(
+            config=self.config,
+            centroids=centroids,
+            avg_residual=avg_residual,
+            bucket_cutoffs=bucket_cutoffs,
+            bucket_weights=bucket_weights)
         self.saver.save_codec(codec)
 
     def _concatenate_and_split_sample(self):
         print_memory_stats(f'***1*** \t RANK:{self.rank}')
 
-        # TODO: Allocate a float16 array. Load the samples from disk, copy to array.
-        sample = torch.empty(self.num_sample_embs, self.config.dim, dtype=torch.float16)
+        # TODO: Allocate a float16 array. Load the samples from disk, copy to
+        # array.
+        sample = torch.empty(
+            self.num_sample_embs,
+            self.config.dim,
+            dtype=torch.float16)
 
         offset = 0
         for r in range(self.nranks):
-            sub_sample_path = os.path.join(self.config.index_path_, f'sample.{r}.pt')
+            sub_sample_path = os.path.join(
+                self.config.index_path_, f'sample.{r}.pt')
             sub_sample = torch.load(sub_sample_path)
             os.remove(sub_sample_path)
 
@@ -245,7 +274,8 @@ class CollectionIndexer():
 
         heldout_fraction = 0.05
         heldout_size = int(min(heldout_fraction * sample.size(0), 50_000))
-        sample, sample_heldout = sample.split([sample.size(0) - heldout_size, heldout_size], dim=0)
+        sample, sample_heldout = sample.split(
+            [sample.size(0) - heldout_size, heldout_size], dim=0)
 
         print_memory_stats(f'***4*** \t RANK:{self.rank}')
 
@@ -255,9 +285,14 @@ class CollectionIndexer():
         if self.use_gpu:
             torch.cuda.empty_cache()
 
-        do_fork_for_faiss = False  # set to True to free faiss GPU-0 memory at the cost of one more copy of `sample`.
+        # set to True to free faiss GPU-0 memory at the cost of one more copy
+        # of `sample`.
+        do_fork_for_faiss = False
 
-        args_ = [self.config.dim, self.num_partitions, self.config.kmeans_niters]
+        args_ = [
+            self.config.dim,
+            self.num_partitions,
+            self.config.kmeans_niters]
         if do_fork_for_faiss:
             # For this to work reliably, write the sample to disk. Pickle may not handle >4GB of data.
             # Delete the sample file after work is done.
@@ -284,10 +319,15 @@ class CollectionIndexer():
         return centroids
 
     def _compute_avg_residual(self, centroids, heldout):
-        compressor = ResidualCodec(config=self.config, centroids=centroids, avg_residual=None)
+        compressor = ResidualCodec(
+            config=self.config,
+            centroids=centroids,
+            avg_residual=None)
 
-        heldout_reconstruct = compressor.compress_into_codes(heldout, out_device='cuda' if self.use_gpu else 'cpu')
-        heldout_reconstruct = compressor.lookup_centroids(heldout_reconstruct, out_device='cuda' if self.use_gpu else 'cpu')
+        heldout_reconstruct = compressor.compress_into_codes(
+            heldout, out_device='cuda' if self.use_gpu else 'cpu')
+        heldout_reconstruct = compressor.lookup_centroids(
+            heldout_reconstruct, out_device='cuda' if self.use_gpu else 'cpu')
         if self.use_gpu:
             heldout_avg_residual = heldout.cuda() - heldout_reconstruct
         else:
@@ -297,15 +337,18 @@ class CollectionIndexer():
         print([round(x, 3) for x in avg_residual.squeeze().tolist()])
 
         num_options = 2 ** self.config.nbits
-        quantiles = torch.arange(0, num_options, device=heldout_avg_residual.device) * (1 / num_options)
-        bucket_cutoffs_quantiles, bucket_weights_quantiles = quantiles[1:], quantiles + (0.5 / num_options)
+        quantiles = torch.arange(
+            0, num_options, device=heldout_avg_residual.device) * (1 / num_options)
+        bucket_cutoffs_quantiles, bucket_weights_quantiles = quantiles[1:], quantiles + (
+            0.5 / num_options)
 
         bucket_cutoffs = heldout_avg_residual.float().quantile(bucket_cutoffs_quantiles)
         bucket_weights = heldout_avg_residual.float().quantile(bucket_weights_quantiles)
 
         print_message(
             f"#> Got bucket_cutoffs_quantiles = {bucket_cutoffs_quantiles} and bucket_weights_quantiles = {bucket_weights_quantiles}")
-        print_message(f"#> Got bucket_cutoffs = {bucket_cutoffs} and bucket_weights = {bucket_weights}")
+        print_message(
+            f"#> Got bucket_cutoffs = {bucket_cutoffs} and bucket_weights = {bucket_weights}")
 
         return bucket_cutoffs, bucket_weights, avg_residual.mean()
 
@@ -317,9 +360,12 @@ class CollectionIndexer():
     def index(self):
         with self.saver.thread():
             batches = self.collection.enumerate_batches(rank=self.rank)
-            for chunk_idx, offset, passages in tqdm.tqdm(batches, disable=self.rank > 0):
-                if self.config.resume and self.saver.check_chunk_exists(chunk_idx):
-                    Run().print_main(f"#> Found chunk {chunk_idx} in the index already, skipping encoding...")
+            for chunk_idx, offset, passages in tqdm.tqdm(
+                    batches, disable=self.rank > 0):
+                if self.config.resume and self.saver.check_chunk_exists(
+                        chunk_idx):
+                    Run().print_main(
+                        f"#> Found chunk {chunk_idx} in the index already, skipping encoding...")
                     continue
                 embs, doclens = self.encoder.encode_passages(passages)
                 if self.use_gpu:
@@ -328,8 +374,9 @@ class CollectionIndexer():
                     assert embs.dtype == torch.float32
                     embs = embs.half()
 
-                Run().print_main(f"#> Saving chunk {chunk_idx}: \t {len(passages):,} passages "
-                                 f"and {embs.size(0):,} embeddings. From #{offset:,} onward.")
+                Run().print_main(
+                    f"#> Saving chunk {chunk_idx}: \t {len(passages):,} passages "
+                    f"and {embs.size(0):,} embeddings. From #{offset:,} onward.")
 
                 self.saver.save_chunk(chunk_idx, offset, embs, doclens)
                 del embs, doclens
@@ -350,8 +397,9 @@ class CollectionIndexer():
         for chunk_idx in range(self.num_chunks):
             if not self.saver.check_chunk_exists(chunk_idx):
                 success = False
-                Run().print_main(f"#> ERROR: Could not find chunk {chunk_idx}!")
-                #TODO: Fail here?
+                Run().print_main(
+                    f"#> ERROR: Could not find chunk {chunk_idx}!")
+                # TODO: Fail here?
         if success:
             Run().print_main("Found all files!")
 
@@ -362,7 +410,9 @@ class CollectionIndexer():
         self.embedding_offsets = []
 
         for chunk_idx in range(self.num_chunks):
-            metadata_path = os.path.join(self.config.index_path_, f'{chunk_idx}.metadata.json')
+            metadata_path = os.path.join(
+                self.config.index_path_,
+                f'{chunk_idx}.metadata.json')
 
             with open(metadata_path) as f:
                 chunk_metadata = ujson.load(f)
@@ -370,7 +420,8 @@ class CollectionIndexer():
                 chunk_metadata['embedding_offset'] = embedding_offset
                 self.embedding_offsets.append(embedding_offset)
 
-                assert chunk_metadata['passage_offset'] == passage_offset, (chunk_idx, passage_offset, chunk_metadata)
+                assert chunk_metadata['passage_offset'] == passage_offset, (
+                    chunk_idx, passage_offset, chunk_metadata)
 
                 passage_offset += chunk_metadata['num_passages']
                 embedding_offset += chunk_metadata['num_embeddings']
@@ -397,11 +448,13 @@ class CollectionIndexer():
 
         for chunk_idx in tqdm.tqdm(range(self.num_chunks)):
             offset = self.embedding_offsets[chunk_idx]
-            chunk_codes = ResidualCodec.Embeddings.load_codes(self.config.index_path_, chunk_idx)
+            chunk_codes = ResidualCodec.Embeddings.load_codes(
+                self.config.index_path_, chunk_idx)
 
-            codes[offset:offset+chunk_codes.size(0)] = chunk_codes
+            codes[offset:offset + chunk_codes.size(0)] = chunk_codes
 
-        assert offset+chunk_codes.size(0) == codes.size(0), (offset, chunk_codes.size(0), codes.size())
+        assert offset + \
+            chunk_codes.size(0) == codes.size(0), (offset, chunk_codes.size(0), codes.size())
 
         Run().print_main(f"Sorting codes...")
 
@@ -436,9 +489,20 @@ class CollectionIndexer():
             f.write(ujson.dumps(d, indent=4) + '\n')
 
 
-def compute_faiss_kmeans(dim, num_partitions, kmeans_niters, shared_lists, return_value_queue=None):
+def compute_faiss_kmeans(
+        dim,
+        num_partitions,
+        kmeans_niters,
+        shared_lists,
+        return_value_queue=None):
     use_gpu = torch.cuda.is_available()
-    kmeans = faiss.Kmeans(dim, num_partitions, niter=kmeans_niters, gpu=use_gpu, verbose=True, seed=123)
+    kmeans = faiss.Kmeans(
+        dim,
+        num_partitions,
+        niter=kmeans_niters,
+        gpu=use_gpu,
+        verbose=True,
+        seed=123)
 
     sample = shared_lists[0][0]
     sample = sample.float().numpy()

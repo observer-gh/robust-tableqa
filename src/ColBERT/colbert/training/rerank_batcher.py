@@ -14,16 +14,27 @@ from colbert.data.examples import Examples
 
 
 class RerankBatcher():
-    def __init__(self, config: ColBERTConfig, triples, queries, collection, rank=0, nranks=1):
+    def __init__(
+            self,
+            config: ColBERTConfig,
+            triples,
+            queries,
+            collection,
+            rank=0,
+            nranks=1):
         self.bsize, self.accumsteps = config.bsize, config.accumsteps
         self.nway = config.nway
-        
+
         assert self.accumsteps == 1, "The tensorizer doesn't support larger accumsteps yet --- but it's easy to add."
 
-        self.tokenizer = RerankerTokenizer(total_maxlen=config.doc_maxlen, base=config.checkpoint)
+        self.tokenizer = RerankerTokenizer(
+            total_maxlen=config.doc_maxlen,
+            base=config.checkpoint)
         self.position = 0
 
-        self.triples = Examples.cast(triples, nway=self.nway).tolist(rank, nranks)
+        self.triples = Examples.cast(
+            triples, nway=self.nway).tolist(
+            rank, nranks)
         self.queries = Queries.cast(queries)
         self.collection = Collection.cast(collection)
 
@@ -34,7 +45,8 @@ class RerankBatcher():
         return len(self.triples)
 
     def __next__(self):
-        offset, endpos = self.position, min(self.position + self.bsize, len(self.triples))
+        offset, endpos = self.position, min(
+            self.position + self.bsize, len(self.triples))
         self.position = endpos
 
         if offset + self.bsize > len(self.triples):
@@ -50,7 +62,7 @@ class RerankBatcher():
 
             try:
                 pids, scores = zipstar(pids)
-            except:
+            except BaseException:
                 scores = []
 
             passages = [self.collection[pid] for pid in pids]
@@ -58,7 +70,7 @@ class RerankBatcher():
             all_queries.append(query)
             all_passages.extend(passages)
             all_scores.extend(scores)
-        
+
         assert len(all_scores) in [0, len(all_passages)], len(all_scores)
 
         return self.collate(all_queries, all_passages, all_scores)

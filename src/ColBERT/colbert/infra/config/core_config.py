@@ -33,7 +33,7 @@ class CoreConfig:
 
             if not isinstance(field_val, DefaultVal):
                 self.assigned[field.name] = True
-    
+
     def assign_defaults(self):
         for field in fields(self):
             setattr(self, field.name, field.default.val)
@@ -73,7 +73,11 @@ class CoreConfig:
             v = (f"list with {len(v)} elements starting with...", v[:3])
 
         if isinstance(v, dict) and len(v) > 100:
-            v = (f"dict with {len(v)} keys starting with...", list(v.keys())[:3])
+            v = (
+                f"dict with {len(v)} keys starting with...",
+                list(
+                    v.keys())[
+                    :3])
 
         return v
 

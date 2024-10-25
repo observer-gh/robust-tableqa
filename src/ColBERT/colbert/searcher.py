@@ -20,24 +20,33 @@ TextQueries = Union[str, 'list[str]', 'dict[int, str]', Queries]
 
 
 class Searcher:
-    def __init__(self, index, checkpoint=None, collection=None, config=None, disable_gpu=True):
+    def __init__(
+            self,
+            index,
+            checkpoint=None,
+            collection=None,
+            config=None,
+            disable_gpu=True):
         print_memory_stats()
 
         initial_config = ColBERTConfig.from_existing(config, Run().config)
         initial_config.total_visible_gpus = config.total_visible_gpus
-        
+
         default_index_root = initial_config.index_root_
         self.index = os.path.join(default_index_root, index)
         self.index_config = ColBERTConfig.load_from_index(self.index)
 
         self.checkpoint = checkpoint or self.index_config.checkpoint
-        self.checkpoint_config = ColBERTConfig.load_from_checkpoint(self.checkpoint)
-        self.config = ColBERTConfig.from_existing(self.checkpoint_config, self.index_config, initial_config)
+        self.checkpoint_config = ColBERTConfig.load_from_checkpoint(
+            self.checkpoint)
+        self.config = ColBERTConfig.from_existing(
+            self.checkpoint_config, self.index_config, initial_config)
 
         self.collection = Collection.cast(collection or self.config.collection)
         self.configure(checkpoint=self.checkpoint, collection=self.collection)
 
-        self.checkpoint = Checkpoint(self.checkpoint, colbert_config=self.config)
+        self.checkpoint = Checkpoint(
+            self.checkpoint, colbert_config=self.config)
         self.configure()
         use_gpu = self.config.total_visible_gpus > 0
         if use_gpu:
@@ -72,11 +81,12 @@ class Searcher:
 
     def _search_all_Q(self, queries, Q, k, filter_fn=None, progress=True):
         if progress:
-            all_scored_pids = [list(zip(*self.dense_search(Q[query_idx:query_idx+1], k, filter_fn=filter_fn)))
-                            for query_idx in tqdm(range(Q.size(0)))]
+            all_scored_pids = [list(zip(*self.dense_search(Q[query_idx:query_idx + 1],
+                                    k, filter_fn=filter_fn))) for query_idx in tqdm(range(Q.size(0)))]
         else:
-            all_scored_pids = [list(zip(*self.dense_search(Q[query_idx:query_idx+1], k, filter_fn=filter_fn)))
-                            for query_idx in range(Q.size(0))]
+            all_scored_pids = [list(zip(*
+                                        self.dense_search(Q[query_idx:query_idx +
+                                                            1], k, filter_fn=filter_fn))) for query_idx in range(Q.size(0))]
 
         data = {qid: val for qid, val in zip(queries.keys(), all_scored_pids)}
 
@@ -119,4 +129,4 @@ class Searcher:
 
         pids, scores = self.ranker.rank(self.config, Q, filter_fn=filter_fn)
 
-        return pids[:k], list(range(1, k+1)), scores[:k]
+        return pids[:k], list(range(1, k + 1)), scores[:k]

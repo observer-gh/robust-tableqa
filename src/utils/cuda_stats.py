@@ -8,6 +8,7 @@ import torch
 import logging
 logger = logging.getLogger(__name__)
 
+
 def print_cuda_statistics():
 
     logger.info('__Python VERSION:  {}'.format(sys.version))
@@ -19,9 +20,11 @@ def print_cuda_statistics():
     logger.info('__Devices')
     try:
         call(["nvidia-smi", "--format=csv",
-            "--query-gpu=index,name,driver_version,memory.total,memory.used,memory.free"])
+              "--query-gpu=index,name,driver_version,memory.total,memory.used,memory.free"])
     except Exception as e:
         logger.info(e)
-    logger.info('Active CUDA Device: GPU {}'.format(torch.cuda.current_device()))
+    logger.info(
+        'Active CUDA Device: GPU {}'.format(
+            torch.cuda.current_device()))
     logger.info('Available devices  {}'.format(torch.cuda.device_count()))
     logger.info('Current cuda device  {}'.format(torch.cuda.current_device()))

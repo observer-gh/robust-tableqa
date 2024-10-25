@@ -36,34 +36,59 @@ class Checkpoint(ColBERT):
                 D = super().doc(*args, **kw_args)
 
                 if to_cpu:
-                    return (D[0].cpu(), *D[1:]) if isinstance(D, tuple) else D.cpu()
+                    return (D[0].cpu(), *
+                            D[1:]) if isinstance(D, tuple) else D.cpu()
 
                 return D
 
     def queryFromText(self, queries, bsize=None, to_cpu=False, context=None):
         if bsize:
-            batches = self.query_tokenizer.tensorize(queries, context=context, bsize=bsize)
-            batches = [self.query(input_ids, attention_mask, to_cpu=to_cpu) for input_ids, attention_mask in batches]
+            batches = self.query_tokenizer.tensorize(
+                queries, context=context, bsize=bsize)
+            batches = [
+                self.query(
+                    input_ids,
+                    attention_mask,
+                    to_cpu=to_cpu) for input_ids,
+                attention_mask in batches]
             return torch.cat(batches)
 
-        input_ids, attention_mask = self.query_tokenizer.tensorize(queries, context=context)
+        input_ids, attention_mask = self.query_tokenizer.tensorize(
+            queries, context=context)
         return self.query(input_ids, attention_mask)
 
-    def docFromText(self, docs, bsize=None, keep_dims=True, to_cpu=False, showprogress=False, return_tokens=False):
+    def docFromText(
+            self,
+            docs,
+            bsize=None,
+            keep_dims=True,
+            to_cpu=False,
+            showprogress=False,
+            return_tokens=False):
         assert keep_dims in [True, False, 'flatten']
 
         if bsize:
-            text_batches, reverse_indices = self.doc_tokenizer.tensorize(docs, bsize=bsize)
+            text_batches, reverse_indices = self.doc_tokenizer.tensorize(
+                docs, bsize=bsize)
 
             returned_text = []
             if return_tokens:
-                returned_text = [text for batch in text_batches for text in batch[0]]
-                returned_text = [returned_text[idx] for idx in reverse_indices.tolist()]
+                returned_text = [
+                    text for batch in text_batches for text in batch[0]]
+                returned_text = [returned_text[idx]
+                                 for idx in reverse_indices.tolist()]
                 returned_text = [returned_text]
 
             keep_dims_ = 'return_mask' if keep_dims == 'flatten' else keep_dims
-            batches = [self.doc(input_ids, attention_mask, keep_dims=keep_dims_, to_cpu=to_cpu)
-                       for input_ids, attention_mask in tqdm(text_batches, disable=not showprogress)]
+            batches = [
+                self.doc(
+                    input_ids,
+                    attention_mask,
+                    keep_dims=keep_dims_,
+                    to_cpu=to_cpu) for input_ids,
+                attention_mask in tqdm(
+                    text_batches,
+                    disable=not showprogress)]
 
             if keep_dims is True:
                 D = _stack_3D_tensors(batches)
@@ -76,7 +101,8 @@ class Checkpoint(ColBERT):
                     D.append(D_)
                     mask.append(mask_)
 
-                D, mask = torch.cat(D)[reverse_indices], torch.cat(mask)[reverse_indices]
+                D, mask = torch.cat(D)[reverse_indices], torch.cat(mask)[
+                    reverse_indices]
 
                 doclens = mask.squeeze(-1).sum(-1).tolist()
 
@@ -88,10 +114,15 @@ class Checkpoint(ColBERT):
             assert keep_dims is False
 
             D = [d for batch in batches for d in batch]
-            return ([D[idx] for idx in reverse_indices.tolist()], *returned_text)
+            return ([D[idx]
+                    for idx in reverse_indices.tolist()], *returned_text)
 
         input_ids, attention_mask = self.doc_tokenizer.tensorize(docs)
-        return self.doc(input_ids, attention_mask, keep_dims=keep_dims, to_cpu=to_cpu)
+        return self.doc(
+            input_ids,
+            attention_mask,
+            keep_dims=keep_dims,
+            to_cpu=to_cpu)
 
     def lazy_rank(self, queries, docs):
         Q = self.queryFromText(queries, bsize=128, to_cpu=True)
@@ -121,7 +152,12 @@ def _stack_3D_tensors(groups):
     maxlen = max([x.size(1) for x in groups])
     hdim = groups[0].size(2)
 
-    output = torch.zeros(bsize, maxlen, hdim, device=groups[0].device, dtype=groups[0].dtype)
+    output = torch.zeros(
+        bsize,
+        maxlen,
+        hdim,
+        device=groups[0].device,
+        dtype=groups[0].dtype)
 
     offset = 0
     for x in groups:

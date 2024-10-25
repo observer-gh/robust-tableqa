@@ -10,7 +10,7 @@ def tokenize_all_answers(args):
 def assign_label_to_passage(args):
     idx, (qid, pid, rank, passage, tokenized_answers) = args
 
-    if idx % (1*1000*1000) == 0:
+    if idx % (1 * 1000 * 1000) == 0:
         print(idx)
 
     return qid, pid, rank, has_answer(tokenized_answers, passage)
@@ -29,7 +29,7 @@ def check_sizes(qid2answers, qid2rankings):
         print('\n\n')
         print_message('[WARNING] num_judged_queries != num_ranked_queries')
         print('\n\n')
-    
+
     return num_judged_queries, num_ranked_queries
 
 
@@ -47,7 +47,7 @@ def compute_and_write_labels(output_path, qid2answers, qid2rankings):
             labels = []
 
             for pid, rank, label in qid2rankings[qid]:
-                assert rank == prev_rank+1, (qid, pid, (prev_rank, rank))
+                assert rank == prev_rank + 1, (qid, pid, (prev_rank, rank))
                 prev_rank = rank
 
                 labels.append(label)

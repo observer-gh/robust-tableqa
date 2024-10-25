@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: CC-BY-NC-4.0
 
 """
-config_system.py:  
+config_system.py:
     Functions for initializing config
         - Read json/jsonnet config files
         - Parse args and override parameters in config files
@@ -40,7 +40,8 @@ def get_config_from_json(json_file):
 
     try:
         config_dict = json.loads(_jsonnet.evaluate_file(json_file))
-        # EasyDict allows to access dict values as attributes (works recursively).
+        # EasyDict allows to access dict values as attributes (works
+        # recursively).
         config = EasyDict(config_dict)
         return config, config_dict
     except ValueError:
@@ -103,15 +104,25 @@ def process_config(args):
     config.experiment_path = os.path.join(
         config.EXPERIMENT_FOLDER, config.experiment_name)
     config.saved_model_path = os.path.join(
-        config.EXPERIMENT_FOLDER, config.experiment_name, "train", 'saved_model')
+        config.EXPERIMENT_FOLDER,
+        config.experiment_name,
+        "train",
+        'saved_model')
     if config.mode == "train":
         config.imgs_path = os.path.join(
             config.EXPERIMENT_FOLDER, config.experiment_name, "train", 'imgs')
     else:
-        config.imgs_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name, "test",
-                                        config.test.evaluation_name, 'imgs')
-        config.results_path = os.path.join(config.EXPERIMENT_FOLDER, config.experiment_name, "test",
-                                           config.test.evaluation_name)
+        config.imgs_path = os.path.join(
+            config.EXPERIMENT_FOLDER,
+            config.experiment_name,
+            "test",
+            config.test.evaluation_name,
+            'imgs')
+        config.results_path = os.path.join(
+            config.EXPERIMENT_FOLDER,
+            config.experiment_name,
+            "test",
+            config.test.evaluation_name)
     config.tensorboard_path = os.path.join(
         config.TENSORBOARD_FOLDER, config.experiment_name)
     config.WANDB.tags = config.WANDB.tags + args.tags
@@ -142,12 +153,12 @@ def parse_optional_args(config, args):
     if opts is None:
         logging.warning("opts is None, setting it to an empty list.")
         opts = []
-    
+
     for opt in opts:
         path, value = opt.split('=')
         try:
             value = eval(value)
-        except:
+        except BaseException:
             value = str(value)
             print('input value {} is not a number, parse to string.')
 

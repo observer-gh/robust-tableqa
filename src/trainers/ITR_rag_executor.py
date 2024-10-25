@@ -2,6 +2,26 @@
 
 # SPDX-License-Identifier: CC-BY-NC-4.0
 
+from utils.dirs import *
+from .base_executor import BaseExecutor
+from .metrics_processors import MetricsProcessor
+from models.rag.itr_rag_reduce import ITRRagReduceModel, ITRRagReduceRowWiseModel, ITRRagReduceMixModel
+from models.rag.itr_rag import ITRRagModel, ITRRagAdditionRowWiseModel
+from transformers.modeling_utils import unwrap_model
+from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES, MODEL_MAPPING_NAMES
+from transformers import TapexTokenizer, BartConfig, BartForConditionalGeneration
+from pytorch_lightning import Trainer, seed_everything
+import pytorch_lightning as pl
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import Dataset, DataLoader
+import torch.optim as optim
+import torch.nn.functional as F
+import torch.nn as nn
+import torch
+from functools import partial
+from easydict import EasyDict
+from tqdm import tqdm
+from pprint import pprint
 import math
 import time
 import os
@@ -16,44 +36,21 @@ import wandb
 import logging
 logger = logging.getLogger(__name__)
 
-from pprint import pprint
-from tqdm import tqdm
-from easydict import EasyDict
-from functools import partial
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.tensorboard import SummaryWriter
-
-import pytorch_lightning as pl
-from pytorch_lightning import Trainer, seed_everything
 
 # For TAPEX model
-from transformers import TapexTokenizer, BartConfig, BartForConditionalGeneration
-from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES, MODEL_MAPPING_NAMES
-from transformers.modeling_utils import unwrap_model
-from models.rag.itr_rag import ITRRagModel, ITRRagAdditionRowWiseModel
-from models.rag.itr_rag_reduce import ITRRagReduceModel, ITRRagReduceRowWiseModel, ITRRagReduceMixModel
 
-from .metrics_processors import MetricsProcessor
-from .base_executor import BaseExecutor
-from utils.dirs import *
 
 class ITRRAGExecutor(BaseExecutor):
     def __init__(self, config, data_loader):
         super().__init__(config, data_loader)
-        
+
         self.tokenizer = data_loader.tokenizer
         self.decoder_tokenizer = data_loader.decoder_tokenizer
-        
+
         ModelClass = globals()[self.config.model_config.ModelClass]
 
         self.model = ModelClass(config, data_loader)
-        
-    
+
     def configure_optimizers(self):
         """
         Return optimizers and schedulers
@@ -70,10 +67,10 @@ class ITRRAGExecutor(BaseExecutor):
                     for n in get_parameter_names(child, forbidden_layer_types)
                     if not isinstance(child, tuple(forbidden_layer_types))
                 ]
-            # Add model specific parameters (defined with nn.Parameter) since they are not in any child.
+            # Add model specific parameters (defined with nn.Parameter) since
+            # they are not in any child.
             result += list(model._parameters.keys())
             return result
-        
 
         if 'freeze_question_encoder' in self.config.model_config.modules:
             # Freeze retriever
@@ -82,7 +79,7 @@ class ITRRAGExecutor(BaseExecutor):
                 if 'generator' not in n:
                     p.requires_grad = False
                 # print(n, p.requires_grad)
-        
+
         weight_decay = self.config.train.additional.get('weight_decay', 0)
         if weight_decay == 0:
             optimization_parameters = [
@@ -93,20 +90,27 @@ class ITRRAGExecutor(BaseExecutor):
                 },
             ]
         else:
-            # The weight decay to apply (if not zero) to all layers except all bias and LayerNorm weights in [`AdamW`]
+            # The weight decay to apply (if not zero) to all layers except all
+            # bias and LayerNorm weights in [`AdamW`]
             ALL_LAYERNORM_LAYERS = [nn.LayerNorm]
 
-            decay_parameters = get_parameter_names(self.model, ALL_LAYERNORM_LAYERS)
-            decay_parameters = [name for name in decay_parameters if "bias" not in name]
+            decay_parameters = get_parameter_names(
+                self.model, ALL_LAYERNORM_LAYERS)
+            decay_parameters = [
+                name for name in decay_parameters if "bias" not in name]
             optimization_parameters = [
                 {
-                    "params": [p for n, p in self.model.named_parameters() if n in decay_parameters],
+                    "params": [
+                        p for n,
+                        p in self.model.named_parameters() if n in decay_parameters],
                     "weight_decay": weight_decay,
                     'lr': self.config.train.lr,
                     'initial_lr': self.config.train.lr,
                 },
                 {
-                    "params": [p for n, p in self.model.named_parameters() if n not in decay_parameters],
+                    "params": [
+                        p for n,
+                        p in self.model.named_parameters() if n not in decay_parameters],
                     "weight_decay": 0.0,
                     'lr': self.config.train.lr,
                     'initial_lr': self.config.train.lr,
@@ -114,8 +118,8 @@ class ITRRAGExecutor(BaseExecutor):
             ]
 
         for group in optimization_parameters:
-            logger.info('#params: {}   lr: {}'.format(len(group['params']), group['lr']))
-        
+            logger.info('#params: {}   lr: {}'.format(
+                len(group['params']), group['lr']))
 
         """define optimizer"""
         self.optimizer = torch.optim.AdamW(
@@ -132,8 +136,8 @@ class ITRRAGExecutor(BaseExecutor):
             )
         elif self.config.train.scheduler == 'cosine':
             t_total = self.config.train.epochs
-            self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, 
-                            t_total, eta_min=1e-5, last_epoch=-1, verbose=False)
+            self.scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer, t_total, eta_min=1e-5, last_epoch=-1, verbose=False)
         else:
             from transformers import get_constant_schedule_with_warmup
             # Using constant scheduler
@@ -142,7 +146,7 @@ class ITRRAGExecutor(BaseExecutor):
                 num_warmup_steps=self.config.train.additional.warmup_steps,
                 last_epoch=self.global_step,
             )
-        
+
         return {
             'optimizer': self.optimizer,
             'lr_scheduler': {
@@ -163,7 +167,6 @@ class ITRRAGExecutor(BaseExecutor):
             }
         }
 
-
     def training_step(self, sample_batched, batch_idx):
         train_batch = EasyDict({
             'input_ids': sample_batched['input_ids'].to(self.device),
@@ -183,21 +186,32 @@ class ITRRAGExecutor(BaseExecutor):
         #     batch_loss = self.label_smoother(forward_results, train_batch.labels, shift_labels=True)
         # else:
         #     batch_loss = self.label_smoother(forward_results, train_batch.labels)
-        
+
         # log the current learning rate from shedulers
         current_lrs = self.scheduler.get_last_lr()
         for index, current_lr in enumerate(current_lrs):
-            self.log(f"train/lr[{index}]", current_lr, prog_bar=True, on_step=True, logger=True, sync_dist=True)
+            self.log(
+                f"train/lr[{index}]",
+                current_lr,
+                prog_bar=True,
+                on_step=True,
+                logger=True,
+                sync_dist=True)
 
         # logs metrics for each training_step,
         # and the average across the epoch, to the progress bar and logger
-        self.log("train/loss", batch_loss, on_step=True, on_epoch=True, logger=True, sync_dist=True)
-        
+        self.log(
+            "train/loss",
+            batch_loss,
+            on_step=True,
+            on_epoch=True,
+            logger=True,
+            sync_dist=True)
+
         data_to_return = {
             'loss': batch_loss,
         }
         return data_to_return
-    
 
     def validation_step(self, sample_batched, batch_idx, dataloader_idx=0):
         # print(f'batch_idx {batch_idx}  dataloader_idx {dataloader_idx}')
@@ -210,12 +224,12 @@ class ITRRAGExecutor(BaseExecutor):
                 validation_step_output = validation_step_outputs
             else:
                 validation_step_output = validation_step_outputs[i]
-            
+
             log_dict = self.evaluate_outputs(validation_step_output)
             self.logging_results(log_dict, prefix=self.val_dataloader_names[i])
 
         return None
-    
+
     def test_step(self, sample_batched, batch_idx, dataloader_idx=0):
         return self._generative_step(sample_batched, batch_idx)
 
@@ -225,10 +239,12 @@ class ITRRAGExecutor(BaseExecutor):
                 test_step_output = test_step_outputs
             else:
                 test_step_output = test_step_outputs[i]
-            
+
             log_dict = self.evaluate_outputs(test_step_output)
-            self.logging_results(log_dict, prefix=f"{self.config.test.evaluation_name}_{self.test_dataloader_names[i]}")
-        
+            self.logging_results(
+                log_dict,
+                prefix=f"{self.config.test.evaluation_name}_{self.test_dataloader_names[i]}")
+
         return None
 
     def _generative_step(self, sample_batched, batch_idx):
@@ -251,7 +267,7 @@ class ITRRAGExecutor(BaseExecutor):
             'tables': sample_batched['tables'],
         })
         # print(f'running generative step {test_batch.input_ids.shape} {test_batch.attention_mask.shape} {labels.shape}  {sample_batched["question_ids"]}')
-        
+
         generation_outputs = self.model.generate(**test_batch)
         outputs = generation_outputs.outputs
         retrieved_docs = generation_outputs.retrieved_docs
@@ -260,29 +276,38 @@ class ITRRAGExecutor(BaseExecutor):
         doc_scores = generation_outputs.doc_scores
         generator_input_sub_tables = generation_outputs.generator_input_sub_tables
 
-
         bos_token_id = self.data_loader.decoder_tokenizer.bos_token_id
         for index, i in enumerate(labels):
 
-            cleaned_i = [label if label!=-100 else self.decoder_tokenizer.pad_token_id for label in i]
+            cleaned_i = [
+                label if label != -
+                100 else self.decoder_tokenizer.pad_token_id for label in i]
             cleaned_i = torch.LongTensor(cleaned_i)
-            decoded_label = self.decoder_tokenizer.decode(cleaned_i, skip_special_tokens=True)
+            decoded_label = self.decoder_tokenizer.decode(
+                cleaned_i, skip_special_tokens=True)
             # print(self.tokenizer.decode(cleaned_i, skip_special_tokens=True))
-            
+
             output_sequence = outputs[index]
             output_sequence = output_sequence.cpu().numpy().tolist()
 
             if bos_token_id in output_sequence:
-                output_sequence = output_sequence[output_sequence.index(bos_token_id):]
+                output_sequence = output_sequence[output_sequence.index(
+                    bos_token_id):]
 
             # print('output_sequence after', output_sequence)
-            decoded_output = self.decoder_tokenizer.decode(output_sequence, skip_special_tokens=True)
-            actual_output = self.decoder_tokenizer.decode(output_sequence, skip_special_tokens=False)
+            decoded_output = self.decoder_tokenizer.decode(
+                output_sequence, skip_special_tokens=True)
+            actual_output = self.decoder_tokenizer.decode(
+                output_sequence, skip_special_tokens=False)
             # print(self.tokenizer.decode(cleaned_i, skip_special_tokens=True))
-            
+
             if batch_idx < 1:
-                print(decoded_label, '<--->', decoded_output, '   ({})'.format(actual_output))
-            
+                print(
+                    decoded_label,
+                    '<--->',
+                    decoded_output,
+                    '   ({})'.format(actual_output))
+
             question_id = sample_batched['question_ids'][index]
             original_table_overflow = generator_input_sub_tables[index][0]['original_table_overflow']
 
@@ -292,7 +317,7 @@ class ITRRAGExecutor(BaseExecutor):
                 'decoded_label': decoded_label,
                 'original_table_overflow': original_table_overflow,
             })
-            
+
             table_entry = [
                 question_id,
                 sample_batched['questions'][index],
@@ -300,29 +325,42 @@ class ITRRAGExecutor(BaseExecutor):
                 decoded_output,
                 generation_outputs_for_docs[index],
             ]
-            for doc, doc_prediction in zip(generator_input_sub_tables[index], generation_outputs_for_docs[index]): 
-                
+            for doc, doc_prediction in zip(
+                    generator_input_sub_tables[index], generation_outputs_for_docs[index]):
+
                 col_row_info = f'cols: [{str(doc.get("sub_column_indice", ""))}] rows: [{str(doc.get("sub_row_indice", ""))}] len: {doc["input_length"]}'
-                table_entry+=['[' + sample_batched['tables'][index]['id'] + '] ' + col_row_info, doc_prediction]
-                
+                table_entry += ['[' +
+                                sample_batched['tables'][index]['id'] +
+                                '] ' +
+                                col_row_info, doc_prediction]
 
             num_retrieved = len(retrieved_docs[index])
             max_K = max(self.config.model_config.Ks)
 
             if num_retrieved <= max_K:
-                for doc, doc_score in zip(retrieved_docs[index], doc_scores[index]):
-                    present_str = str(doc['header']) if doc.get('sub_type', 'column_wise')=='column_wise' else str(doc['sub_row_indice'])
-                    table_entry+=[f'[{doc["id"]}] {present_str}', doc_score]
-                for i in range(max(self.config.model_config.Ks) - len(retrieved_docs[index])):
+                for doc, doc_score in zip(
+                        retrieved_docs[index], doc_scores[index]):
+                    present_str = str(
+                        doc['header']) if doc.get(
+                        'sub_type',
+                        'column_wise') == 'column_wise' else str(
+                        doc['sub_row_indice'])
+                    table_entry += [f'[{doc["id"]}] {present_str}', doc_score]
+                for i in range(max(self.config.model_config.Ks) -
+                               len(retrieved_docs[index])):
                     table_entry += ['', 0]
             else:
-                for doc, doc_score in zip(retrieved_docs[index][:max_K], doc_scores[index][:max_K]):
-                    present_str = str(doc['header']) if doc.get('sub_type', 'column_wise')=='column_wise' else str(doc['sub_row_indice'])
-                    table_entry+=[f'[{doc["id"]}] {present_str}', doc_score]
-            
+                for doc, doc_score in zip(
+                        retrieved_docs[index][:max_K], doc_scores[index][:max_K]):
+                    present_str = str(
+                        doc['header']) if doc.get(
+                        'sub_type',
+                        'column_wise') == 'column_wise' else str(
+                        doc['sub_row_indice'])
+                    table_entry += [f'[{doc["id"]}] {present_str}', doc_score]
+
             table_entries.append(table_entry)
 
-        
         data_to_return = {
             'predictions': predictions,
             'outputs': outputs,
@@ -340,15 +378,12 @@ class ITRRAGExecutor(BaseExecutor):
         }
 
         return data_to_return
-    
-    
-
 
     def evaluate_outputs(self, step_outputs, mode='test'):
         # Batching every validation step outputs
         batch_predictions = []
         batch_answers = []
-        batch_retrieval_results = [] # for retrieval results
+        batch_retrieval_results = []  # for retrieval results
         batch_retrieved_docs = []
         batch_generation_outputs_for_docs = []
         batch_loss_with_doc_scores = []
@@ -359,13 +394,19 @@ class ITRRAGExecutor(BaseExecutor):
         gold_column_dict = {}
         gold_row_dict = {}
 
-        columns=["question_id", "question", "answers", "prediction", "doc_predictions"]
+        columns = [
+            "question_id",
+            "question",
+            "answers",
+            "prediction",
+            "doc_predictions"]
         n_docs = self.config.data_loader.additional.num_knowledge_passages
         for i in range(n_docs):
             columns += ['p_{}'.format(i), 'a_{}'.format(i)]
         for i in range(max(self.config.model_config.Ks)):
-            columns += ['retrieved_{}'.format(i), 'retrieved_score_{}'.format(i)]
-        
+            columns += ['retrieved_{}'.format(i),
+                        'retrieved_score_{}'.format(i)]
+
         test_table = wandb.Table(columns=columns)
 
         for step_output in step_outputs:
@@ -373,7 +414,8 @@ class ITRRAGExecutor(BaseExecutor):
             batch_answers += step_output['answers']
             batch_retrieved_docs += step_output['retrieved_docs']
             batch_generation_outputs_for_docs += step_output['generation_outputs_for_docs']
-            batch_loss_with_doc_scores.append(step_output['loss_with_doc_scores'])
+            batch_loss_with_doc_scores.append(
+                step_output['loss_with_doc_scores'])
             batch_question_ids += step_output['question_ids']
             batch_sub_tables += step_output['sub_tables']
             batch_generator_input_sub_tables += step_output['generator_input_sub_tables']
@@ -381,30 +423,31 @@ class ITRRAGExecutor(BaseExecutor):
             for score in step_output['doc_scores']:
                 batch_doc_scores.append(score)
 
-            for question_id, gold_columns, gold_rows in zip(step_output['question_ids'], step_output['gold_columns'], step_output['gold_rows']):
+            for question_id, gold_columns, gold_rows in zip(
+                    step_output['question_ids'], step_output['gold_columns'], step_output['gold_rows']):
                 gold_column_dict[question_id] = gold_columns
                 gold_row_dict[question_id] = gold_rows
 
             for table_entry in step_output['table_entries']:
                 test_table.add_data(*table_entry)
-            
-        
+
         # Prepare retrieval data for retrieval performance evaluation
-        for retrieved_docs, question_id, generator_input_sub_tables in zip(batch_retrieved_docs, batch_question_ids, batch_generator_input_sub_tables):
-            # IMPORTANT: is_gold is override in retrieval; we have to use the annotations from the dataloader directly!!!!!
+        for retrieved_docs, question_id, generator_input_sub_tables in zip(
+                batch_retrieved_docs, batch_question_ids, batch_generator_input_sub_tables):
+            # IMPORTANT: is_gold is override in retrieval; we have to use the a
             # ranked_sub_table_ids = [sub_table['id'] for sub_table in retrieved_docs]
             # annotated_sub_table_dict = {sub_table['id']: sub_table for sub_table in annotated_sub_tables}
             # ranked_annotated_sub_tables = [annotated_sub_table_dict[sub_table_id] for sub_table_id in ranked_sub_table_ids]
             # build retrieved_tables_sorted
-            retrieved_tables_sorted = list(zip(generator_input_sub_tables, [0.0]*len(generator_input_sub_tables)))
+            retrieved_tables_sorted = list(
+                zip(generator_input_sub_tables, [0.0] * len(generator_input_sub_tables)))
             retrieval_result = {
                 'question_id': question_id,
-                'retrieved_tables_sorted': retrieved_tables_sorted, # already sorted!
+                'retrieved_tables_sorted': retrieved_tables_sorted,  # already sorted!
                 'gold_columns': gold_column_dict[question_id],
                 'gold_rows': gold_row_dict[question_id],
             }
             batch_retrieval_results.append(retrieval_result)
-        
 
         ##############################
         ##    Compute Metrics       ##
@@ -423,13 +466,13 @@ class ITRRAGExecutor(BaseExecutor):
         return log_dict
 
     def logging_results(self, log_dict, prefix='test'):
-        ### Add test results to wandb / tensorboard
+        # Add test results to wandb / tensorboard
         metrics_to_log = EasyDict()
         wandb_artifacts_to_log = dict()
         # Refractor the column names
         for metric, value in log_dict.metrics.items():
             metrics_to_log[f'{prefix}/{metric}'] = value
-        
+
         # include other artifacts / metadata
         metrics_to_log[f'{prefix}/epoch'] = self.current_epoch
         wandb_artifacts_to_log.update({
@@ -438,28 +481,29 @@ class ITRRAGExecutor(BaseExecutor):
         pprint(metrics_to_log)
         pprint(wandb_artifacts_to_log)
 
-        logger.info(f"Evaluation results [{self.trainer.state.stage}]: {metrics_to_log}")
-        
+        logger.info(
+            f"Evaluation results [{self.trainer.state.stage}]: {metrics_to_log}")
+
         if self.trainer.state.stage in ['sanity_check']:
             logging.warning('Sanity check mode, not saving to loggers.')
             return
-        
+
         # Add to loggers
         for metric, value in metrics_to_log.items():
             if type(value) in [float, int, np.float64]:
                 self.log(metric, float(value), logger=True, sync_dist=True)
             else:
-                logger.info(f'{metric} is not a type that can be logged, skippped.')
-        
+                logger.info(
+                    f'{metric} is not a type that can be logged, skippped.')
+
         # Call wandb to log artifacts; remember to use commit=False so that the data will be logged
         #       with other metrics later.
         if self.config.args.log_prediction_tables:
-            self.wandb_logger.experiment.log(wandb_artifacts_to_log, commit=True)
-        
-    
+            self.wandb_logger.experiment.log(
+                wandb_artifacts_to_log, commit=True)
+
     def forward(self, **kwargs):
         return self.model(**kwargs)
-
 
 
 class ITRRAGExecutorForTAPAS(ITRRAGExecutor):
@@ -485,11 +529,12 @@ class ITRRAGExecutorForTAPAS(ITRRAGExecutor):
             # "num_beams": self.config.model_config.get('num_beams', 1)
         })
         # print(f'running generative step {test_batch.input_ids.shape} {test_batch.attention_mask.shape} {labels.shape}  {sample_batched["question_ids"]}')
-        
+
         if 'suppress_ITR' not in self.config.model_config.modules:
             # turn off extreme cell truncation for ITR
             self.model.generator_tokenizer.do_extreme_cell_truncation = False
-        generation_outputs = self.model.non_autoregressive_predict(**test_batch)
+        generation_outputs = self.model.non_autoregressive_predict(
+            **test_batch)
 
         outputs = generation_outputs.outputs
         retrieved_docs = generation_outputs.retrieved_docs
@@ -505,10 +550,11 @@ class ITRRAGExecutorForTAPAS(ITRRAGExecutor):
         valids = sample_batched['valid']
         input_text_sequences = sample_batched['input_text_sequences']
 
-        for index, question_id, answer_list, query, pred, predicted_agg, valid, raw_cells in zip(range(len(question_ids)), question_ids, answers, input_text_sequences, outputs, agg_predictions, valids, raw_cell_values):
-            
+        for index, question_id, answer_list, query, pred, predicted_agg, valid, raw_cells in zip(range(len(
+                question_ids)), question_ids, answers, input_text_sequences, outputs, agg_predictions, valids, raw_cell_values):
+
             decoded_label = ", ".join(answer_list)
-            
+
             if isinstance(pred, list):
                 # the prediction is a list
                 # not aggregation -> concat strings
@@ -520,7 +566,7 @@ class ITRRAGExecutorForTAPAS(ITRRAGExecutor):
 
             if batch_idx < 1:
                 print(decoded_label, '<--->', decoded_output)
-            
+
             question_id = sample_batched['question_ids'][index]
             original_table_overflow = generator_input_sub_tables[index][0]['original_table_overflow']
 
@@ -534,7 +580,7 @@ class ITRRAGExecutorForTAPAS(ITRRAGExecutor):
                 'original_table_overflow': original_table_overflow,
                 'valid': valid,
             })
-            
+
             generation_outputs_per_doc = generation_outputs_for_docs[index]
             str_generation_outputs_per_doc = []
             for item in generation_outputs_per_doc:
@@ -542,7 +588,7 @@ class ITRRAGExecutorForTAPAS(ITRRAGExecutor):
                     str_generation_outputs_per_doc.append(", ".join(item))
                 else:
                     str_generation_outputs_per_doc.append(str(item))
-            
+
             table_entry = [
                 question_id,
                 sample_batched['questions'][index],
@@ -550,26 +596,41 @@ class ITRRAGExecutorForTAPAS(ITRRAGExecutor):
                 decoded_output,
                 str_generation_outputs_per_doc,
             ]
-            
-            for doc, doc_prediction in zip(generator_input_sub_tables[index], str_generation_outputs_per_doc): 
+
+            for doc, doc_prediction in zip(
+                    generator_input_sub_tables[index], str_generation_outputs_per_doc):
                 col_row_info = f'cols: [{str(doc.get("sub_column_indice", ""))}] rows: [{str(doc.get("sub_row_indice", ""))}] len: {doc["input_length"]}'
-                table_entry+=['[' + sample_batched['tables'][index]['id'] + '] ' + col_row_info, doc_prediction]
+                table_entry += ['[' +
+                                sample_batched['tables'][index]['id'] +
+                                '] ' +
+                                col_row_info, doc_prediction]
 
             num_retrieved = len(retrieved_docs[index])
             max_K = max(self.config.model_config.Ks)
 
             if num_retrieved <= max_K:
-                for doc, doc_score in zip(retrieved_docs[index], doc_scores[index]):
-                    present_str = str(doc['header']) if doc.get('sub_type', 'column_wise')=='column_wise' else str(doc['sub_row_indice'])
-                    table_entry+=[f'[{doc["id"]}] {present_str}', doc_score]
-                for i in range(max(self.config.model_config.Ks) - len(retrieved_docs[index])):
+                for doc, doc_score in zip(
+                        retrieved_docs[index], doc_scores[index]):
+                    present_str = str(
+                        doc['header']) if doc.get(
+                        'sub_type',
+                        'column_wise') == 'column_wise' else str(
+                        doc['sub_row_indice'])
+                    table_entry += [f'[{doc["id"]}] {present_str}', doc_score]
+                for i in range(max(self.config.model_config.Ks) -
+                               len(retrieved_docs[index])):
                     table_entry += ['', 0]
             else:
-                for doc, doc_score in zip(retrieved_docs[index][:max_K], doc_scores[index][:max_K]):
-                    present_str = str(doc['header']) if doc.get('sub_type', 'column_wise')=='column_wise' else str(doc['sub_row_indice'])
-                    table_entry+=[f'[{doc["id"]}] {present_str}', doc_score]
+                for doc, doc_score in zip(
+                        retrieved_docs[index][:max_K], doc_scores[index][:max_K]):
+                    present_str = str(
+                        doc['header']) if doc.get(
+                        'sub_type',
+                        'column_wise') == 'column_wise' else str(
+                        doc['sub_row_indice'])
+                    table_entry += [f'[{doc["id"]}] {present_str}', doc_score]
             table_entries.append(table_entry)
-        
+
         data_to_return = {
             'predictions': predictions,
             'outputs': outputs,

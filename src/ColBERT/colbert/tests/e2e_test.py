@@ -71,7 +71,8 @@ def main(args):
 
     # Start the test
     k = 5
-    searcher = build_index_and_init_searcher(checkpoint, collection, experiment_dir)
+    searcher = build_index_and_init_searcher(
+        checkpoint, collection, experiment_dir)
 
     squad = load_dataset("squad")
     squad_dev = get_squad_split(squad)

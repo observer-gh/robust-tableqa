@@ -13,9 +13,12 @@ def get_metadata_only():
 
     args.hostname = socket.gethostname()
     try:
-        args.git_branch = git.Repo(search_parent_directories=True).active_branch.name
-        args.git_hash = git.Repo(search_parent_directories=True).head.object.hexsha
-        args.git_commit_datetime = str(git.Repo(search_parent_directories=True).head.object.committed_datetime)
+        args.git_branch = git.Repo(
+            search_parent_directories=True).active_branch.name
+        args.git_hash = git.Repo(
+            search_parent_directories=True).head.object.hexsha
+        args.git_commit_datetime = str(
+            git.Repo(search_parent_directories=True).head.object.committed_datetime)
     except git.exc.InvalidGitRepositoryError as e:
         pass
     args.current_datetime = time.strftime('%b %d, %Y ; %l:%M%p %Z (%z)')
@@ -28,26 +31,31 @@ def get_metadata(args):
     args = copy.deepcopy(args)
 
     args.hostname = socket.gethostname()
-    args.git_branch = git.Repo(search_parent_directories=True).active_branch.name
+    args.git_branch = git.Repo(
+        search_parent_directories=True).active_branch.name
     args.git_hash = git.Repo(search_parent_directories=True).head.object.hexsha
-    args.git_commit_datetime = str(git.Repo(search_parent_directories=True).head.object.committed_datetime)
+    args.git_commit_datetime = str(
+        git.Repo(search_parent_directories=True).head.object.committed_datetime)
     args.current_datetime = time.strftime('%b %d, %Y ; %l:%M%p %Z (%z)')
     args.cmd = ' '.join(sys.argv)
 
     try:
         args.input_arguments = copy.deepcopy(args.input_arguments.__dict__)
-    except:
+    except BaseException:
         args.input_arguments = None
 
     return dict(args.__dict__)
 
 # TODO:  No reason for deepcopy. But: (a) Call provenance() on objects that can, (b) Only save simple, small objects. No massive lists or models or weird stuff!
-# With that, I think we don't even need (necessarily) to restrict things to input_arguments.
+# With that, I think we don't even need (necessarily) to restrict things
+# to input_arguments.
+
 
 def format_metadata(metadata):
-    assert type(metadata) == dict
 
-    return ujson.dumps(metadata, indent=4)
+
+assert isinstance(metadata,     assert )
+return ujson.dumps(metadata, indent=4)
 
 
 def save_metadata(path, args):

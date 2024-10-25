@@ -31,21 +31,24 @@ class Launcher:
         return_value_queue = mp.Queue()
 
         rng = random.Random(time.time())
-        port = str(12355 + rng.randint(0, 1000))  # randomize the port to avoid collision on launching several jobs.
+        # randomize the port to avoid collision on launching several jobs.
+        port = str(12355 + rng.randint(0, 1000))
 
         all_procs = []
         for new_rank in range(0, self.nranks):
             assert isinstance(custom_config, BaseConfig)
             assert isinstance(custom_config, RunSettings)
 
-            new_config = type(custom_config).from_existing(custom_config, self.run_config, RunConfig(rank=new_rank))
+            new_config = type(custom_config).from_existing(
+                custom_config, self.run_config, RunConfig(rank=new_rank))
 
             args_ = (self.callee, port, return_value_queue, new_config, *args)
             all_procs.append(mp.Process(target=setup_new_process, args=args_))
 
         # Clear GPU space (e.g., after a `Searcher` on GPU-0 is deleted)
         # TODO: Generalize this from GPU-0 only!
-        # TODO: Move this to a function. And call that function from __del__ in a class that's inherited by Searcher, Indexer, etc.
+        # TODO: Move this to a function. And call that function from __del__ in
+        # a class that's inherited by Searcher, Indexer, etc.
 
         # t = torch.cuda.get_device_properties(0).total_memory
         # r = torch.cuda.memory_reserved(0)
@@ -71,20 +74,21 @@ class Launcher:
 
         print_memory_stats('MAIN')
 
-        # TODO: If the processes crash upon join, raise an exception and don't block on .get() below!
+        # TODO: If the processes crash upon join, raise an exception and don't
+        # block on .get() below!
 
         return_values = sorted([return_value_queue.get() for _ in all_procs])
         return_values = [val for rank, val in return_values]
 
         if not self.return_all:
             return_values = return_values[0]
-        
+
         for proc in all_procs:
             proc.join()
             print("#> Joined...")
 
         print_memory_stats('MAIN')
-        
+
         return return_values
 
 
@@ -104,7 +108,8 @@ def setup_new_process(callee, port, return_value_queue, config, *args):
     os.environ["RANK"] = str(config.rank)
 
     # TODO: Ideally the gpus "getter" handles this max-nranks thing!
-    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, config.gpus_[:nranks]))
+    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(
+        map(str, config.gpus_[:nranks]))
 
     nranks_, distributed_ = distributed.init(rank)
     assert nranks_ == nranks
@@ -120,7 +125,8 @@ def setup_new_process(callee, port, return_value_queue, config, *args):
 def print_memory_stats(message=''):
     return  # FIXME: Add this back before release.
 
-    import psutil  # Remove before releases? Or at least make optional with try/except.
+    # Remove before releases? Or at least make optional with try/except.
+    import psutil
 
     global_info = psutil.virtual_memory()
     total, available, used, free = global_info.total, global_info.available, global_info.used, global_info.free

@@ -65,7 +65,7 @@ def load_topK(topK_path):
 
     with open(topK_path) as f:
         for line_idx, line in enumerate(f):
-            if line_idx and line_idx % (10*1000*1000) == 0:
+            if line_idx and line_idx % (10 * 1000 * 1000) == 0:
                 print(line_idx, end=' ', flush=True)
 
             qid, pid, query, passage = line.split('\t')
@@ -80,12 +80,23 @@ def load_topK(topK_path):
 
         print()
 
-    assert all(len(topK_pids[qid]) == len(set(topK_pids[qid])) for qid in topK_pids)
+    assert all(len(topK_pids[qid]) == len(
+        set(topK_pids[qid])) for qid in topK_pids)
 
     Ks = [len(topK_pids[qid]) for qid in topK_pids]
 
-    print_message("#> max(Ks) =", max(Ks), ", avg(Ks) =", round(sum(Ks) / len(Ks), 2))
-    print_message("#> Loaded the top-k per query for", len(queries), "unique queries.\n")
+    print_message(
+        "#> max(Ks) =",
+        max(Ks),
+        ", avg(Ks) =",
+        round(
+            sum(Ks) /
+            len(Ks),
+            2))
+    print_message(
+        "#> Loaded the top-k per query for",
+        len(queries),
+        "unique queries.\n")
 
     return queries, topK_docs, topK_pids
 
@@ -98,7 +109,7 @@ def load_topK_pids(topK_path, qrels):
 
     with open(topK_path) as f:
         for line_idx, line in enumerate(f):
-            if line_idx and line_idx % (10*1000*1000) == 0:
+            if line_idx and line_idx % (10 * 1000 * 1000) == 0:
                 print(line_idx, end=' ', flush=True)
 
             qid, pid, *rest = line.strip().split('\t')
@@ -118,31 +129,49 @@ def load_topK_pids(topK_path, qrels):
 
         print()
 
-    assert all(len(topK_pids[qid]) == len(set(topK_pids[qid])) for qid in topK_pids)
-    assert all(len(topK_positives[qid]) == len(set(topK_positives[qid])) for qid in topK_positives)
+    assert all(len(topK_pids[qid]) == len(
+        set(topK_pids[qid])) for qid in topK_pids)
+    assert all(len(topK_positives[qid]) == len(
+        set(topK_positives[qid])) for qid in topK_positives)
 
     # Make them sets for fast lookups later
     topK_positives = {qid: set(topK_positives[qid]) for qid in topK_positives}
 
     Ks = [len(topK_pids[qid]) for qid in topK_pids]
 
-    print_message("#> max(Ks) =", max(Ks), ", avg(Ks) =", round(sum(Ks) / len(Ks), 2))
-    print_message("#> Loaded the top-k per query for", len(topK_pids), "unique queries.\n")
+    print_message(
+        "#> max(Ks) =",
+        max(Ks),
+        ", avg(Ks) =",
+        round(
+            sum(Ks) /
+            len(Ks),
+            2))
+    print_message(
+        "#> Loaded the top-k per query for",
+        len(topK_pids),
+        "unique queries.\n")
 
     if len(topK_positives) == 0:
         topK_positives = None
     else:
         assert len(topK_pids) >= len(topK_positives)
 
-        for qid in set.difference(set(topK_pids.keys()), set(topK_positives.keys())):
+        for qid in set.difference(set(topK_pids.keys()),
+                                  set(topK_positives.keys())):
             topK_positives[qid] = []
 
         assert len(topK_pids) == len(topK_positives)
 
-        avg_positive = round(sum(len(topK_positives[qid]) for qid in topK_positives) / len(topK_pids), 2)
+        avg_positive = round(
+            sum(len(topK_positives[qid]) for qid in topK_positives) / len(topK_pids), 2)
 
-        print_message("#> Concurrently got annotations for", len(topK_positives), "unique queries with",
-                      avg_positive, "positives per query on average.\n")
+        print_message(
+            "#> Concurrently got annotations for",
+            len(topK_positives),
+            "unique queries with",
+            avg_positive,
+            "positives per query on average.\n")
 
     assert qrels is None or topK_positives is None, "Cannot have both qrels and an annotated top-K file!"
 
@@ -159,7 +188,7 @@ def load_collection(collection_path):
 
     with open(collection_path) as f:
         for line_idx, line in enumerate(f):
-            if line_idx % (1000*1000) == 0:
+            if line_idx % (1000 * 1000) == 0:
                 print(f'{line_idx // 1000 // 1000}M', end=' ', flush=True)
 
             pid, passage, *rest = line.strip('\n\r ').split('\t')
@@ -184,9 +213,11 @@ def load_colbert(args, do_print=True):
 
     for k in ['query_maxlen', 'doc_maxlen', 'dim', 'similarity', 'amp']:
         if 'arguments' in checkpoint and hasattr(args, k):
-            if k in checkpoint['arguments'] and checkpoint['arguments'][k] != getattr(args, k):
+            if k in checkpoint['arguments'] and checkpoint['arguments'][k] != getattr(
+                    args, k):
                 a, b = checkpoint['arguments'][k], getattr(args, k)
-                Run.warn(f"Got checkpoint['arguments']['{k}'] != args.{k} (i.e., {a} != {b})")
+                Run.warn(
+                    f"Got checkpoint['arguments']['{k}'] != args.{k} (i.e., {a} != {b})")
 
     if 'arguments' in checkpoint:
         if args.rank < 1:

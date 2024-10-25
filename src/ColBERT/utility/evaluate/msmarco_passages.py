@@ -72,23 +72,29 @@ def main(args):
             if pid in positives:
                 for depth in qid2recall:
                     if rank <= depth:
-                        qid2recall[depth][qid] = qid2recall[depth].get(qid, 0) + 1.0 / len(positives)
+                        qid2recall[depth][qid] = qid2recall[depth].get(
+                            qid, 0) + 1.0 / len(positives)
 
-    assert len(qid2mrr) <= num_ranked_queries, (len(qid2mrr), num_ranked_queries)
+    assert len(qid2mrr) <= num_ranked_queries, (len(
+        qid2mrr), num_ranked_queries)
 
     print()
     mrr_10_sum = sum(qid2mrr.values())
     print_message(f"#> MRR@10 = {mrr_10_sum / num_judged_queries}")
-    print_message(f"#> MRR@10 (only for ranked queries) = {mrr_10_sum / num_ranked_queries}")
+    print_message(
+        f"#> MRR@10 (only for ranked queries) = {mrr_10_sum / num_ranked_queries}")
     print()
 
     for depth in qid2recall:
-        assert len(qid2recall[depth]) <= num_ranked_queries, (len(qid2recall[depth]), num_ranked_queries)
+        assert len(
+            qid2recall[depth]) <= num_ranked_queries, (len(
+                qid2recall[depth]), num_ranked_queries)
 
         print()
         metric_sum = sum(qid2recall[depth].values())
         print_message(f"#> Recall@{depth} = {metric_sum / num_judged_queries}")
-        print_message(f"#> Recall@{depth} (only for ranked queries) = {metric_sum / num_ranked_queries}")
+        print_message(
+            f"#> Recall@{depth} (only for ranked queries) = {metric_sum / num_ranked_queries}")
         print()
 
     if args.annotate:
@@ -115,7 +121,11 @@ if __name__ == "__main__":
     # Input Arguments.
     parser.add_argument('--qrels', dest='qrels', required=True, type=str)
     parser.add_argument('--ranking', dest='ranking', required=True, type=str)
-    parser.add_argument('--annotate', dest='annotate', default=False, action='store_true')
+    parser.add_argument(
+        '--annotate',
+        dest='annotate',
+        default=False,
+        action='store_true')
 
     args = parser.parse_args()
 

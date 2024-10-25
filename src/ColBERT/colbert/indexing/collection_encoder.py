@@ -23,15 +23,16 @@ class CollectionEncoder():
             # Storing on the GPU helps with speed of masking, etc.
             # But ideally this batching happens internally inside docFromText.
             for passages_batch in batch(passages, self.config.bsize * 50):
-                embs_, doclens_ = self.checkpoint.docFromText(passages_batch, bsize=self.config.bsize,
-                                                              keep_dims='flatten', showprogress=(not self.use_gpu))
+                embs_, doclens_ = self.checkpoint.docFromText(
+                    passages_batch, bsize=self.config.bsize, keep_dims='flatten', showprogress=(
+                        not self.use_gpu))
                 embs.append(embs_)
                 doclens.extend(doclens_)
 
             embs = torch.cat(embs)
 
             # embs, doclens = self.checkpoint.docFromText(passages, bsize=self.config.bsize,
-            #                                                   keep_dims='flatten', showprogress=(self.config.rank < 1))
+            # keep_dims='flatten', showprogress=(self.config.rank < 1))
 
         # with torch.inference_mode():
         #     embs = self.checkpoint.docFromText(passages, bsize=self.config.bsize,

@@ -30,9 +30,11 @@ def process_page(inp):
         words = tokenizer.tokenize(content)
 
     words_ = (words + words) if len(words) > nwords else words
-    passages = [words_[offset:offset + nwords] for offset in range(0, len(words) - overlap, nwords - overlap)]
+    passages = [words_[offset:offset + nwords]
+                for offset in range(0, len(words) - overlap, nwords - overlap)]
 
-    assert all(len(psg) in [len(words), nwords] for psg in passages), (list(map(len, passages)), len(words))
+    assert all(len(psg) in [len(words), nwords]
+               for psg in passages), (list(map(len, passages)), len(words))
 
     if tokenizer is None:
         passages = [' '.join(psg) for psg in passages]
@@ -68,7 +70,7 @@ def main(args):
 
     with open(args.input) as f:
         for line_idx, line in enumerate(f):
-            if line_idx % (100*1000) == 0:
+            if line_idx % (100 * 1000) == 0:
                 print(line_idx, end=' ')
 
             title, url = None, None
@@ -84,11 +86,12 @@ def main(args):
                     docid, url, title, doc = line
 
                 RawCollection.append((line_idx, docid, title, url, doc))
-            except:
+            except BaseException:
                 NumIllFormattedLines += 1
 
                 if NumIllFormattedLines % 1000 == 0:
-                    print(f'\n[{line_idx}] NumIllFormattedLines = {NumIllFormattedLines}\n')
+                    print(
+                        f'\n[{line_idx}] NumIllFormattedLines = {NumIllFormattedLines}\n')
 
     print()
     print_message("# of documents is", len(RawCollection), '\n')
@@ -102,7 +105,8 @@ def main(args):
         from transformers import BertTokenizerFast
         tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
-    process_page_params = [(args.nwords, args.overlap, tokenizer)] * len(RawCollection)
+    process_page_params = [
+        (args.nwords, args.overlap, tokenizer)] * len(RawCollection)
     Collection = p.map(process_page, zip(process_page_params, RawCollection))
 
     print_message(f"#> Writing to {output_path} ...")
@@ -123,7 +127,8 @@ def main(args):
                 elif args.format == Format2:
                     f.write('\t'.join([str(line_idx), passage, title]) + '\n')
                 elif args.format == Format3:
-                    f.write('\t'.join([str(line_idx), passage, title, docid]) + '\n')
+                    f.write('\t'.join(
+                        [str(line_idx), passage, title, docid]) + '\n')
 
                 line_idx += 1
 
@@ -133,10 +138,21 @@ if __name__ == "__main__":
 
     # Input Arguments.
     parser.add_argument('--input', dest='input', required=True)
-    parser.add_argument('--format', dest='format', required=True, choices=[Format1, Format2, Format3])
+    parser.add_argument(
+        '--format',
+        dest='format',
+        required=True,
+        choices=[
+            Format1,
+            Format2,
+            Format3])
 
     # Output Arguments.
-    parser.add_argument('--use-wordpiece', dest='use_wordpiece', default=False, action='store_true')
+    parser.add_argument(
+        '--use-wordpiece',
+        dest='use_wordpiece',
+        default=False,
+        action='store_true')
     parser.add_argument('--nwords', dest='nwords', default=100, type=int)
     parser.add_argument('--overlap', dest='overlap', default=0, type=int)
 

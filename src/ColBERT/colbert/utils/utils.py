@@ -10,12 +10,12 @@ from collections import OrderedDict, defaultdict
 
 def print_message(*s, condition=True, pad=False):
     s = ' '.join([str(x) for x in s])
-    msg = "[{}] {}".format(datetime.datetime.now().strftime("%b %d, %H:%M:%S"), s)
+    msg = "[{}] {}".format(
+    datetime.datetime.now().strftime("%b %d, %H:%M:%S"), s)
 
     if condition:
         msg = msg if not pad else f'\n{msg}\n'
         print(msg, flush=True)
-
 
     return msg
 
@@ -42,8 +42,9 @@ def torch_load_dnn(path):
         dnn = torch.hub.load_state_dict_from_url(path, map_location='cpu')
     else:
         dnn = torch.load(path, map_location='cpu')
-    
+
     return dnn
+
 
 def save_checkpoint(path, epoch_idx, mb_idx, model, optimizer, arguments=None):
     print(f"#> Saving a checkpoint to {path} ..")
@@ -61,7 +62,12 @@ def save_checkpoint(path, epoch_idx, mb_idx, model, optimizer, arguments=None):
     torch.save(checkpoint, path)
 
 
-def load_checkpoint(path, model, checkpoint=None, optimizer=None, do_print=True):
+def load_checkpoint(
+    path,
+    model,
+    checkpoint=None,
+    optimizer=None,
+     do_print=True):
     if do_print:
         print_message("#> Loading checkpoint", path, "..")
 
@@ -70,7 +76,7 @@ def load_checkpoint(path, model, checkpoint=None, optimizer=None, do_print=True)
 
     try:
         model.load_state_dict(checkpoint['model_state_dict'])
-    except:
+    except BaseException:
         print_message("[WARNING] Loading checkpoint with strict=False")
         model.load_state_dict(checkpoint['model_state_dict'], strict=False)
 
@@ -86,7 +92,8 @@ def load_checkpoint(path, model, checkpoint=None, optimizer=None, do_print=True)
 
 def load_checkpoint_raw(path):
     if path.startswith("http:") or path.startswith("https:"):
-        checkpoint = torch.hub.load_state_dict_from_url(path, map_location='cpu')
+        checkpoint = torch.hub.load_state_dict_from_url(
+            path, map_location='cpu')
     else:
         checkpoint = torch.load(path, map_location='cpu')
 
@@ -195,8 +202,9 @@ def zip_first(L1, L2):
 def int_or_float(val):
     if '.' in val:
         return float(val)
-        
+
     return int(val)
+
 
 def load_ranking(path, types=None, lazy=False):
     print_message(f"#> Loading the ranked lists from {path} ..")
@@ -204,13 +212,13 @@ def load_ranking(path, types=None, lazy=False):
     try:
         lists = torch.load(path)
         lists = zipstar([l.tolist() for l in tqdm.tqdm(lists)], lazy=lazy)
-    except:
+    except BaseException:
         if types is None:
             types = itertools.cycle([int_or_float])
 
         with open(path) as f:
-            lists = [[typ(x) for typ, x in zip_first(types, line.strip().split('\t'))]
-                     for line in file_tqdm(f)]
+            lists = [[typ(x) for typ, x in zip_first(
+                types, line.strip().split('\t'))] for line in file_tqdm(f)]
 
     return lists
 
@@ -284,8 +292,10 @@ def lengths2offsets(lengths):
 class NullContextManager(object):
     def __init__(self, dummy_resource=None):
         self.dummy_resource = dummy_resource
+
     def __enter__(self):
         return self.dummy_resource
+
     def __exit__(self, *args):
         pass
 
@@ -299,12 +309,12 @@ def load_batch_backgrounds(args, qids):
     for qid in qids:
         back = args.qid2backgrounds[qid]
 
-        if len(back) and type(back[0]) == int:
-            x = [args.collection[pid] for pid in back]
+
+if len(back) and isinstance(back[0],         if len(back) and )            x = [args.collection[pid] for pid in back]
         else:
             x = [args.collectionX.get(pid, '') for pid in back]
 
         x = ' [SEP] '.join(x)
         qbackgrounds.append(x)
-    
+
     return qbackgrounds

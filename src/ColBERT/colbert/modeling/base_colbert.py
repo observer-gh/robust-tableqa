@@ -20,8 +20,10 @@ class BaseColBERT(torch.nn.Module):
         super().__init__()
 
         self.name = name
-        self.colbert_config = ColBERTConfig.from_existing(ColBERTConfig.load_from_checkpoint(name), colbert_config)
-        self.model = HF_ColBERT.from_pretrained(name, colbert_config=self.colbert_config)
+        self.colbert_config = ColBERTConfig.from_existing(
+            ColBERTConfig.load_from_checkpoint(name), colbert_config)
+        self.model = HF_ColBERT.from_pretrained(
+            name, colbert_config=self.colbert_config)
         self.raw_tokenizer = AutoTokenizer.from_pretrained(self.model.base)
 
         self.eval()
@@ -33,17 +35,18 @@ class BaseColBERT(torch.nn.Module):
     @property
     def bert(self):
         return self.model.bert
-    
+
     @property
     def linear(self):
         return self.model.linear
-    
+
     @property
     def score_scaler(self):
         return self.model.score_scaler
 
     def save(self, path):
-        assert not path.endswith('.dnn'), f"{path}: We reserve *.dnn names for the deprecated checkpoint format."
+        assert not path.endswith(
+            '.dnn'), f"{path}: We reserve *.dnn names for the deprecated checkpoint format."
 
         self.model.save_pretrained(path)
         self.raw_tokenizer.save_pretrained(path)
@@ -63,7 +66,12 @@ if __name__ == '__main__':
     torch.manual_seed(12345)
 
     with Run().context(RunConfig(gpus=2)):
-        m = BaseColBERT('bert-base-uncased', colbert_config=ColBERTConfig(Run().config, doc_maxlen=300, similarity='l2'))
+        m = BaseColBERT(
+            'bert-base-uncased',
+            colbert_config=ColBERTConfig(
+                Run().config,
+                doc_maxlen=300,
+                similarity='l2'))
         m.colbert_config.help()
         print(m.linear.weight)
         m.save('/future/u/okhattab/tmp/2021/08/model.deleteme2/')
@@ -81,7 +89,8 @@ if __name__ == '__main__':
     exit()
 
     # m = HF_ColBERT.from_pretrained('nreimers/MiniLMv2-L6-H768-distilled-from-BERT-Large')
-    m = HF_ColBERT.from_pretrained('/future/u/okhattab/tmp/2021/08/model.deleteme/')
+    m = HF_ColBERT.from_pretrained(
+        '/future/u/okhattab/tmp/2021/08/model.deleteme/')
     print('HF_ColBERT', m.linear.weight)
 
     m.save_pretrained('/future/u/okhattab/tmp/2021/08/model.deleteme/')

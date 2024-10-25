@@ -21,9 +21,11 @@ from colbert.data.ranking import Ranking
 
 class AnnotateEM:
     def __init__(self, collection, qas):
-        # TODO: These should just be Queries! But Queries needs to support looking up answers as qid2answers below.
+        # TODO: These should just be Queries! But Queries needs to support
+        # looking up answers as qid2answers below.
         qas = load_qas_(qas)
-        collection = Collection.cast(collection)  # .tolist() #load_collection_(collection, retain_titles=True)
+        # .tolist() #load_collection_(collection, retain_titles=True)
+        collection = Collection.cast(collection)
 
         self.parallel_pool = Pool(30)
 
@@ -42,23 +44,39 @@ class AnnotateEM:
         # print(len(rankings), rankings[0])
 
         print_message('#> Lookup passages from PIDs...')
-        expanded_rankings = [(qid, pid, rank, self.collection[pid], self.qid2answers[qid])
-                             for qid, pid, rank, *_ in rankings.tolist()]
+        expanded_rankings = [
+            (qid,
+             pid,
+             rank,
+             self.collection[pid],
+             self.qid2answers[qid]) for qid,
+            pid,
+            rank,
+            *_ in rankings.tolist()]
 
         print_message('#> Assign labels in parallel...')
-        labeled_rankings = list(self.parallel_pool.map(assign_label_to_passage, enumerate(expanded_rankings)))
+        labeled_rankings = list(
+            self.parallel_pool.map(
+                assign_label_to_passage,
+                enumerate(expanded_rankings)))
 
         # Dump output.
         self.qid2rankings = groupby_first_item(labeled_rankings)
 
-        self.num_judged_queries, self.num_ranked_queries = check_sizes(self.qid2answers, self.qid2rankings)
+        self.num_judged_queries, self.num_ranked_queries = check_sizes(
+            self.qid2answers, self.qid2rankings)
 
         # Evaluation metrics and depths.
-        self.success, self.counts = self._compute_labels(self.qid2answers, self.qid2rankings)
+        self.success, self.counts = self._compute_labels(
+            self.qid2answers, self.qid2rankings)
 
         print(rankings.provenance(), self.success)
 
-        return Ranking(data=self.qid2rankings, provenance=("AnnotateEM", rankings.provenance()))
+        return Ranking(
+            data=self.qid2rankings,
+            provenance=(
+                "AnnotateEM",
+                rankings.provenance()))
 
     def _compute_labels(self, qid2answers, qid2rankings):
         cutoffs = [1, 5, 10, 20, 30, 50, 100, 1000, 'all']
@@ -73,7 +91,7 @@ class AnnotateEM:
             labels = []
 
             for pid, rank, label in qid2rankings[qid]:
-                assert rank == prev_rank+1, (qid, pid, (prev_rank, rank))
+                assert rank == prev_rank + 1, (qid, pid, (prev_rank, rank))
                 prev_rank = rank
 
                 labels.append(label)
@@ -95,11 +113,16 @@ class AnnotateEM:
 
         # Dump metrics.
         with Run().open(f'{new_path}.metrics', 'w') as f:
-            d = {'num_ranked_queries': self.num_ranked_queries, 'num_judged_queries': self.num_judged_queries}
+            d = {'num_ranked_queries': self.num_ranked_queries,
+                 'num_judged_queries': self.num_judged_queries}
 
             extra = '__WARNING' if self.num_judged_queries != self.num_ranked_queries else ''
-            d[f'success{extra}'] = {k: v / self.num_judged_queries for k, v in self.success.items()}
-            d[f'counts{extra}'] = {k: v / self.num_judged_queries for k, v in self.counts.items()}
+            d[f'success{extra}'] = {
+                k: v / self.num_judged_queries for k,
+                v in self.success.items()}
+            d[f'counts{extra}'] = {
+                k: v / self.num_judged_queries for k,
+                v in self.counts.items()}
             # d['arguments'] = get_metadata(args)  # TODO: Need arguments...
 
             f.write(format_metadata(d) + '\n')
@@ -110,6 +133,7 @@ if __name__ == '__main__':
     r = '/future/u/okhattab/root/unit/experiments/2021.08/retrieve.py/2021-09-04_15.59.37/ranking.tsv'
     r = sys.argv[1]
 
-    a = AnnotateEM(collection='/future/u/okhattab/root/unit/data/NQ-mini/collection.tsv',
-                   qas='/future/u/okhattab/root/unit/data/NQ-mini/dev/qas.json')
+    a = AnnotateEM(
+        collection='/future/u/okhattab/root/unit/data/NQ-mini/collection.tsv',
+        qas='/future/u/okhattab/root/unit/data/NQ-mini/dev/qas.json')
     a.annotate(ranking=r)

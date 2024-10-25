@@ -48,7 +48,8 @@ def convert_to_float(value):
     if isinstance(value, int):
         return float(value)
     if not isinstance(value, str):
-        raise ValueError("Argument value is not a string. Can't parse it as float")
+        raise ValueError(
+            "Argument value is not a string. Can't parse it as float")
     sanitized = value
 
     try:
@@ -59,7 +60,8 @@ def convert_to_float(value):
         if "," in sanitized and _split_thousands(",", sanitized):
             return float(sanitized.replace(",", ""))
         # 5,5556
-        if "," in sanitized and sanitized.count(",") == 1 and not _split_thousands(",", sanitized):
+        if "," in sanitized and sanitized.count(
+                ",") == 1 and not _split_thousands(",", sanitized):
             return float(sanitized.replace(",", "."))
         # 0.0.0.1
         if sanitized.count(".") > 1:
@@ -158,7 +160,10 @@ def _respect_conditions(table, row, conditions):
             cmp_value = _normalize_for_match(cmp_value)
 
         if not isinstance(table_value, type(cmp_value)):
-            raise ValueError("Type difference {} != {}".format(type(table_value), type(cmp_value)))
+            raise ValueError(
+                "Type difference {} != {}".format(
+                    type(table_value),
+                    type(cmp_value)))
 
         if not _compare(cond.operator, table_value, cmp_value):
             return False
@@ -189,7 +194,8 @@ def _get_float_answer(table, answer_coordinates, aggregation_op):
     if aggregation_op == _Aggregation.NONE:
         return None
 
-    # Other aggregation only support numeric values. Bail out if we have strings.
+    # Other aggregation only support numeric values. Bail out if we have
+    # strings.
     if not all((isinstance(v, (int, float)) for v in values)):
         return None
 
@@ -211,15 +217,17 @@ def _get_answer_coordinates(table, sql_query):
     #     aggregation_op = _Aggregation.NONE
     aggregation_op = _Aggregation(aggregation_op_index)
 
-
     target_column = sql_query["sel"]
     conditions = [
-        _Condition(column, _Operator(operator), cmp_value)
-        for column, operator, cmp_value in zip(
-            sql_query["conds"]["column_index"], sql_query["conds"]["operator_index"], sql_query["conds"]["condition"]
-        )
-    ]
-
+        _Condition(
+            column,
+            _Operator(operator),
+            cmp_value) for column,
+        operator,
+        cmp_value in zip(
+            sql_query["conds"]["column_index"],
+            sql_query["conds"]["operator_index"],
+            sql_query["conds"]["condition"])]
 
     indices = []
     for row in range(len(table["rows"])):
@@ -235,7 +243,8 @@ def _get_answer_coordinates(table, sql_query):
     # Parsing of MIN/MAX.
     if aggregation_op_index in (1, 2):
         operators = {2: min, 1: max}
-        values = [(table["rows"][i][j], index) for index, (i, j) in enumerate(indices)]
+        values = [(table["rows"][i][j], index)
+                  for index, (i, j) in enumerate(indices)]
         reduced = functools.reduce(operators[sql_query["agg"]], values)
 
         ret = [indices[reduced[1]]]
@@ -251,7 +260,8 @@ def _get_answer_text(table, answer_coordinates, float_answer):
 
 
 def retrieve_wikisql_query_answer_tapas(table, example) -> List:
-    answer_coordinates, aggregation_op, conditions = _get_answer_coordinates(table, example)
+    answer_coordinates, aggregation_op, conditions = _get_answer_coordinates(
+        table, example)
     float_answer = _get_float_answer(table, answer_coordinates, aggregation_op)
     answer_text = _get_answer_text(table, answer_coordinates, float_answer)
     # keep the original data the same with TaPas

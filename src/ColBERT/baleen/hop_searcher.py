@@ -17,11 +17,13 @@ class HopSearcher(Searcher):
 
     def encode(self, text: TextQueries, context: TextQueries):
         queries = text if type(text) is list else [text]
-        context = context if context is None or type(context) is list else [context]
+        context = context if context is None or type(
+            context) is list else [context]
         bsize = 128 if len(queries) > 128 else None
 
         self.checkpoint.query_tokenizer.query_maxlen = self.config.query_maxlen
-        Q = self.checkpoint.queryFromText(queries, context=context, bsize=bsize, to_cpu=True)
+        Q = self.checkpoint.queryFromText(
+            queries, context=context, bsize=bsize, to_cpu=True)
 
         return Q
 

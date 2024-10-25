@@ -8,11 +8,24 @@ from colbert.infra.run import Run
 
 
 def print_progress(scores):
-    positive_avg, negative_avg = round(scores[:, 0].mean().item(), 2), round(scores[:, 1].mean().item(), 2)
-    print("#>>>   ", positive_avg, negative_avg, '\t\t|\t\t', positive_avg - negative_avg)
+    positive_avg, negative_avg = round(
+        scores[:, 0].mean().item(), 2), round(scores[:, 1].mean().item(), 2)
+    print(
+        "#>>>   ",
+        positive_avg,
+        negative_avg,
+        '\t\t|\t\t',
+        positive_avg -
+        negative_avg)
 
 
-def manage_checkpoints(args, colbert, optimizer, batch_idx, savepath=None, consumed_all_triples=False):
+def manage_checkpoints(
+        args,
+        colbert,
+        optimizer,
+        batch_idx,
+        savepath=None,
+        consumed_all_triples=False):
     # arguments = dict(args)
 
     # TODO: Call provenance() on the values that support it??
@@ -22,12 +35,12 @@ def manage_checkpoints(args, colbert, optimizer, batch_idx, savepath=None, consu
 
     try:
         save = colbert.save
-    except:
+    except BaseException:
         save = colbert.module.save
 
     if not os.path.exists(checkpoints_path):
         os.makedirs(checkpoints_path)
-    
+
     path_save = None
 
     if consumed_all_triples or (batch_idx % 2000 == 0):

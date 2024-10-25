@@ -10,7 +10,8 @@ from colbert.infra.config import RunConfig
 class Run(object):
     _instance = None
 
-    os.environ["TOKENIZERS_PARALLELISM"] = "true"  # NOTE: If a deadlock arises, switch to false!!
+    # NOTE: If a deadlock arises, switch to false!!
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     def __new__(cls):
         """
@@ -20,10 +21,11 @@ class Run(object):
             cls._instance = super().__new__(cls)
             cls._instance.stack = []
 
-            # TODO: Save a timestamp here! And re-use it! But allow the user to override it on calling Run().context a second time.
+            # TODO: Save a timestamp here! And re-use it! But allow the user to
+            # override it on calling Run().context a second time.
             run_config = RunConfig()
             run_config.assign_defaults()
-            
+
             cls._instance.__append(run_config)
 
         # TODO: atexit.register(all_done)
@@ -58,7 +60,7 @@ class Run(object):
             yield
         finally:
             self.__pop()
-        
+
     def open(self, path, mode='r'):
         path = os.path.join(self.path_, path)
 
@@ -69,7 +71,7 @@ class Run(object):
             assert not os.path.exists(path), (self.overwrite, path)
 
         return open(path, mode=mode)
-    
+
     def print(self, *args):
         print_message("[" + str(self.rank) + "]", "\t\t", *args)
 
@@ -89,4 +91,5 @@ if __name__ == '__main__':
         print(Run().rank)
 
 
-# TODO: Handle logging all prints to a file. There should be a way to determine the level of logs that go to stdout.
+# TODO: Handle logging all prints to a file. There should be a way to
+# determine the level of logs that go to stdout.

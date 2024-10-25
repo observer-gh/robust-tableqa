@@ -21,7 +21,7 @@ def main(args):
 
             assert type(metric) is float
             Scores[path] = metric
-    
+
     MaxKey = max(Scores, key=Scores.get)
 
     MaxCKPT = int(MaxKey.split('/')[-2].split('.')[-1])
@@ -31,7 +31,8 @@ def main(args):
         logs = ujson.load(f)
         MaxCHECKPOINT = logs['checkpoint']
 
-        assert MaxCHECKPOINT.endswith(f'colbert-{MaxCKPT}.dnn'), (MaxCHECKPOINT, MaxCKPT)
+        assert MaxCHECKPOINT.endswith(
+            f'colbert-{MaxCKPT}.dnn'), (MaxCHECKPOINT, MaxCKPT)
 
     with open(args.output, 'w') as f:
         f.write(MaxCHECKPOINT)
@@ -52,8 +53,17 @@ if __name__ == "__main__":
     parser = ArgumentParser(description='.')
 
     # Input / Output Arguments
-    parser.add_argument('--metric', dest='metric', required=True, type=str)  # e.g., success.20
-    parser.add_argument('--paths', dest='paths', required=True, type=str, nargs='+')
+    parser.add_argument(
+        '--metric',
+        dest='metric',
+        required=True,
+        type=str)  # e.g., success.20
+    parser.add_argument(
+        '--paths',
+        dest='paths',
+        required=True,
+        type=str,
+        nargs='+')
     parser.add_argument('--output', dest='output', required=True, type=str)
 
     args = parser.parse_args()

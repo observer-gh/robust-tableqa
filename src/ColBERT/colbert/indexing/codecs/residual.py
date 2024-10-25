@@ -18,7 +18,13 @@ from torch.utils.cpp_extension import load
 class ResidualCodec:
     Embeddings = ResidualEmbeddings
 
-    def __init__(self, config, centroids, avg_residual=None, bucket_cutoffs=None, bucket_weights=None):
+    def __init__(
+            self,
+            config,
+            centroids,
+            avg_residual=None,
+            bucket_cutoffs=None,
+            bucket_weights=None):
         self.use_gpu = config.total_visible_gpus > 0
 
         ResidualCodec.try_load_torch_extensions(self.use_gpu)
@@ -44,7 +50,11 @@ class ResidualCodec:
         if not self.use_gpu and self.bucket_weights is not None:
             self.bucket_weights = self.bucket_weights.to(torch.float32)
 
-        self.arange_bits = torch.arange(0, self.nbits, device='cuda' if self.use_gpu else 'cpu', dtype=torch.uint8)
+        self.arange_bits = torch.arange(
+            0,
+            self.nbits,
+            device='cuda' if self.use_gpu else 'cpu',
+            dtype=torch.uint8)
 
         self.rank = config.rank
 
@@ -60,7 +70,8 @@ class ResidualCodec:
                 # Extract a subsequence of length n bits
                 x = (i >> (j - self.nbits)) & mask
 
-                # Reverse the endianness of each bit subsequence (e.g. 10 -> 01)
+                # Reverse the endianness of each bit subsequence (e.g. 10 ->
+                # 01)
                 y = 0
                 for k in range(self.nbits - 1, -1, -1):
                     y += ((x >> (self.nbits - k - 1)) & 1) * (2 ** k)
@@ -70,7 +81,9 @@ class ResidualCodec:
                 if j > self.nbits:
                     z <<= self.nbits
             self.reversed_bit_map.append(z)
-        self.reversed_bit_map = torch.tensor(self.reversed_bit_map).to(torch.uint8)
+        self.reversed_bit_map = torch.tensor(
+            self.reversed_bit_map).to(
+            torch.uint8)
 
         # A table of all possible lookup orders into bucket_weights
         # given n bits per lookup
@@ -99,22 +112,26 @@ class ResidualCodec:
         if hasattr(cls, "loaded_extensions") or not use_gpu:
             return
 
-        print_message(f"Loading decompress_residuals_cpp extension (set COLBERT_LOAD_TORCH_EXTENSION_VERBOSE=True for more info)...")
+        print_message(
+            f"Loading decompress_residuals_cpp extension (set COLBERT_LOAD_TORCH_EXTENSION_VERBOSE=True for more info)...")
         decompress_residuals_cpp = load(
             name="decompress_residuals_cpp",
             sources=[
                 os.path.join(
-                    pathlib.Path(__file__).parent.resolve(), "decompress_residuals.cpp"
-                ),
+                    pathlib.Path(__file__).parent.resolve(),
+                    "decompress_residuals.cpp"),
                 os.path.join(
-                    pathlib.Path(__file__).parent.resolve(), "decompress_residuals.cu"
-                ),
+                    pathlib.Path(__file__).parent.resolve(),
+                    "decompress_residuals.cu"),
             ],
-            verbose=os.getenv("COLBERT_LOAD_TORCH_EXTENSION_VERBOSE", "False") == "True",
+            verbose=os.getenv(
+                "COLBERT_LOAD_TORCH_EXTENSION_VERBOSE",
+                "False") == "True",
         )
         cls.decompress_residuals = decompress_residuals_cpp.decompress_residuals_cpp
 
-        print_message(f"Loading packbits_cpp extension (set COLBERT_LOAD_TORCH_EXTENSION_VERBOSE=True for more info)...")
+        print_message(
+            f"Loading packbits_cpp extension (set COLBERT_LOAD_TORCH_EXTENSION_VERBOSE=True for more info)...")
         packbits_cpp = load(
             name="packbits_cpp",
             sources=[
@@ -142,12 +159,18 @@ class ResidualCodec:
 
         centroids = torch.load(centroids_path, map_location='cpu')
         avg_residual = torch.load(avgresidual_path, map_location='cpu')
-        bucket_cutoffs, bucket_weights = torch.load(buckets_path, map_location='cpu')
+        bucket_cutoffs, bucket_weights = torch.load(
+            buckets_path, map_location='cpu')
 
         if avg_residual.dim() == 0:
             avg_residual = avg_residual.item()
 
-        return cls(config=config, centroids=centroids, avg_residual=avg_residual, bucket_cutoffs=bucket_cutoffs, bucket_weights=bucket_weights)
+        return cls(
+            config=config,
+            centroids=centroids,
+            avg_residual=avg_residual,
+            bucket_cutoffs=bucket_cutoffs,
+            bucket_weights=bucket_weights)
 
     def save(self, index_path):
         assert self.avg_residual is not None
@@ -186,20 +209,29 @@ class ResidualCodec:
         return ResidualCodec.Embeddings(codes, residuals)
 
     def binarize(self, residuals):
-        residuals = torch.bucketize(residuals.float(), self.bucket_cutoffs).to(dtype=torch.uint8)
-        residuals = residuals.unsqueeze(-1).expand(*residuals.size(), self.nbits)  # add a new nbits-wide dim
-        residuals = residuals >> self.arange_bits  # divide by 2^bit for each bit position
+        residuals = torch.bucketize(
+            residuals.float(),
+            self.bucket_cutoffs).to(
+            dtype=torch.uint8)
+        # add a new nbits-wide dim
+        residuals = residuals.unsqueeze(-1).expand(* \
+                                        residuals.size(), self.nbits)
+        # divide by 2^bit for each bit position
+        residuals = residuals >> self.arange_bits
         residuals = residuals & 1  # apply mod 2 to binarize
 
         assert self.dim % 8 == 0
         assert self.dim % (self.nbits * 8) == 0, (self.dim, self.nbits)
 
         if self.use_gpu:
-            residuals_packed = ResidualCodec.packbits(residuals.contiguous().flatten())
+            residuals_packed = ResidualCodec.packbits(
+                residuals.contiguous().flatten())
         else:
-            residuals_packed = np.packbits(np.asarray(residuals.contiguous().flatten()))
+            residuals_packed = np.packbits(
+                np.asarray(residuals.contiguous().flatten()))
         residuals_packed = torch.as_tensor(residuals_packed, dtype=torch.uint8)
-        residuals_packed = residuals_packed.reshape(residuals.size(0), self.dim // 8 * self.nbits)
+        residuals_packed = residuals_packed.reshape(
+            residuals.size(0), self.dim // 8 * self.nbits)
 
         return residuals_packed
 
@@ -214,9 +246,11 @@ class ResidualCodec:
         bsize = (1 << 29) // self.centroids.size(0)
         for batch in embs.split(bsize):
             if self.use_gpu:
-                indices = (self.centroids @ batch.T.cuda().half()).max(dim=0).indices.to(device=out_device)
+                indices = (self.centroids @ batch.T.cuda().half()
+                           ).max(dim=0).indices.to(device=out_device)
             else:
-                indices = (self.centroids @ batch.T.cpu().float()).max(dim=0).indices.to(device=out_device)
+                indices = (self.centroids @ batch.T.cpu().float()
+                           ).max(dim=0).indices.to(device=out_device)
             codes.append(indices)
 
         return torch.cat(codes)
@@ -232,13 +266,15 @@ class ResidualCodec:
 
         for batch in codes.split(1 << 20):
             if self.use_gpu:
-                centroids.append(self.centroids[batch.cuda().long()].to(device=out_device))
+                centroids.append(
+                    self.centroids[batch.cuda().long()].to(device=out_device))
             else:
-                centroids.append(self.centroids[batch.long()].to(device=out_device))
+                centroids.append(
+                    self.centroids[batch.long()].to(device=out_device))
 
         return torch.cat(centroids)
 
-    #@profile
+    # @profile
     def decompress(self, compressed_embs: Embeddings):
         """
             We batch below even if the target device is CUDA to avoid large temporary buffers causing OOM.
@@ -247,7 +283,10 @@ class ResidualCodec:
         codes, residuals = compressed_embs.codes, compressed_embs.residuals
 
         D = []
-        for codes_, residuals_ in zip(codes.split(1 << 15), residuals.split(1 << 15)):
+        for codes_, residuals_ in zip(
+            codes.split(
+                1 << 15), residuals.split(
+                1 << 15)):
             if self.use_gpu:
                 codes_, residuals_ = codes_.cuda(), residuals_.cuda()
                 centroids_ = ResidualCodec.decompress_residuals(
@@ -270,9 +309,11 @@ class ResidualCodec:
                 centroids_.add_(residuals_)
 
             if self.use_gpu:
-                D_ = torch.nn.functional.normalize(centroids_, p=2, dim=-1).half()
+                D_ = torch.nn.functional.normalize(
+                    centroids_, p=2, dim=-1).half()
             else:
-                D_ = torch.nn.functional.normalize(centroids_.to(torch.float32), p=2, dim=-1)
+                D_ = torch.nn.functional.normalize(
+                    centroids_.to(torch.float32), p=2, dim=-1)
             D.append(D_)
 
         return torch.cat(D)

@@ -21,16 +21,19 @@ class Collection:
         return self.data.__iter__()
 
     def __getitem__(self, item):
-        # TODO: Load from disk the first time this is called. Unless self.data is already not None.
+        # TODO: Load from disk the first time this is called. Unless self.data
+        # is already not None.
         return self.data[item]
 
     def __len__(self):
-        # TODO: Load here too. Basically, let's make data a property function and, on first call, either load or get __data.
+        # TODO: Load here too. Basically, let's make data a property function
+        # and, on first call, either load or get __data.
         return len(self.data)
 
     def _load_file(self, path):
         self.path = path
-        return self._load_tsv(path) if path.endswith('.tsv') else self._load_jsonl(path)
+        return self._load_tsv(path) if path.endswith(
+            '.tsv') else self._load_jsonl(path)
 
     def _load_tsv(self, path):
         return load_collection(path)
@@ -40,7 +43,7 @@ class Collection:
 
     def provenance(self):
         return self.path
-    
+
     def toDict(self):
         return {'provenance': self.provenance()}
 
@@ -49,11 +52,12 @@ class Collection:
         assert not os.path.exists(new_path), new_path
 
         with Run().open(new_path, 'w') as f:
-            # TODO: expects content to always be a string here; no separate title!
+            # TODO: expects content to always be a string here; no separate
+            # title!
             for pid, content in enumerate(self.data):
                 content = f'{pid}\t{content}\n'
                 f.write(content)
-            
+
             return f.name
 
     def enumerate(self, rank):
@@ -69,7 +73,8 @@ class Collection:
         offset = 0
         iterator = iter(self)
 
-        for chunk_idx, owner in enumerate(itertools.cycle(range(Run().nranks))):
+        for chunk_idx, owner in enumerate(
+                itertools.cycle(range(Run().nranks))):
             L = [line for _, line in zip(range(chunksize), iterator)]
 
             if len(L) > 0 and owner == rank:
@@ -79,9 +84,10 @@ class Collection:
 
             if len(L) < chunksize:
                 return
-    
+
     def get_chunksize(self):
-        return min(25_000, 1 + len(self) // Run().nranks)  # 25k is great, 10k allows things to reside on GPU??
+        # 25k is great, 10k allows things to reside on GPU??
+        return min(25_000, 1 + len(self) // Run().nranks)
 
     @classmethod
     def cast(cls, obj):

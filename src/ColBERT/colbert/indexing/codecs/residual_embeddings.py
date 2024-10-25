@@ -16,7 +16,8 @@ class ResidualEmbeddings:
         """
 
         # assert isinstance(residuals, bitarray), type(residuals)
-        assert codes.size(0) == residuals.size(0), (codes.size(), residuals.size())
+        assert codes.size(0) == residuals.size(
+            0), (codes.size(), residuals.size())
         assert codes.dim() == 1 and residuals.dim() == 2, (codes.size(), residuals.size())
         assert residuals.dtype == torch.uint8
 
@@ -30,7 +31,10 @@ class ResidualEmbeddings:
         dim, nbits = get_dim_and_nbits(index_path)
 
         codes = torch.empty(num_embeddings, dtype=torch.int32)
-        residuals = torch.empty(num_embeddings, dim // 8 * nbits, dtype=torch.uint8)
+        residuals = torch.empty(
+            num_embeddings,
+            dim // 8 * nbits,
+            dtype=torch.uint8)
 
         codes_offset = 0
 
@@ -47,7 +51,8 @@ class ResidualEmbeddings:
 
             codes_offset = codes_endpos
 
-        # codes, residuals = codes.cuda(), residuals.cuda()  # FIXME: REMOVE THIS LINE!
+        # codes, residuals = codes.cuda(), residuals.cuda()  # FIXME: REMOVE
+        # THIS LINE!
 
         return cls(codes, residuals)
 
@@ -65,14 +70,16 @@ class ResidualEmbeddings:
 
     @classmethod
     def load_residuals(self, index_path, chunk_idx):
-        residuals_path = os.path.join(index_path, f'{chunk_idx}.residuals.pt')  # f'{chunk_idx}.residuals.bn'
+        residuals_path = os.path.join(
+            index_path, f'{chunk_idx}.residuals.pt')  # f'{chunk_idx}.residuals.bn'
         # return _load_bitarray(residuals_path)
 
         return torch.load(residuals_path, map_location='cpu')
 
     def save(self, path_prefix):
         codes_path = f'{path_prefix}.codes.pt'
-        residuals_path = f'{path_prefix}.residuals.pt'  # f'{path_prefix}.residuals.bn'
+        # f'{path_prefix}.residuals.bn'
+        residuals_path = f'{path_prefix}.residuals.pt'
 
         torch.save(self.codes, codes_path)
         torch.save(self.residuals, residuals_path)

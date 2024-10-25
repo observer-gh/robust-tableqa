@@ -5,7 +5,8 @@ import ujson
 from colbert.evaluation.loaders import load_queries
 
 # TODO: Look up path in some global [per-thread or thread-safe] list.
-# TODO: path could be a list of paths...? But then how can we tell it's not a list of queries..
+# TODO: path could be a list of paths...? But then how can we tell it's
+# not a list of queries..
 
 
 class Queries:
@@ -15,7 +16,7 @@ class Queries:
         if data:
             assert isinstance(data, dict), type(data)
         self._load_data(data) or self._load_file(path)
-    
+
     def __len__(self):
         return len(self.data)
 
@@ -24,7 +25,7 @@ class Queries:
 
     def provenance(self):
         return self.path
-    
+
     def toDict(self):
         return {'provenance': self.provenance()}
 
@@ -51,7 +52,7 @@ class Queries:
         if not path.endswith('.json'):
             self.data = load_queries(path)
             return True
-        
+
         # Load QAs
         self.data = {}
         self._qas = {}
@@ -89,7 +90,7 @@ class Queries:
             for qid, content in self.data.items():
                 content = f'{qid}\t{content}\n'
                 f.write(content)
-            
+
             return f.name
 
     def save_qas(self, new_path):

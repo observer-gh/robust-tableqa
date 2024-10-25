@@ -23,7 +23,8 @@ class Baleen:
         pids_bag = set()
 
         for hop_idx in range(0, num_hops):
-            ranking = list(zip(*searcher.search(query, context=context, k=depth)))
+            ranking = list(
+                zip(*searcher.search(query, context=context, k=depth)))
             ranking_ = []
 
             facts_pids = set([pid for pid, _ in facts])
@@ -32,27 +33,15 @@ class Baleen:
                 # print(f'[{score}] \t\t {searcher.collection[pid]}')
                 if len(ranking_) < k and pid not in facts_pids:
                     ranking_.append(pid)
-                
-                if len(pids_bag) < k * (hop_idx+1):
+
+                if len(pids_bag) < k * (hop_idx + 1):
                     pids_bag.add(pid)
-            
-            stage1_preds, facts, stage2_L3x = condenser.condense(query, backs=facts, ranking=ranking_)
-            context = ' [SEP] '.join([collectionX.get((pid, sid), '') for pid, sid in facts])
+
+            stage1_preds, facts, stage2_L3x = condenser.condense(
+                query, backs=facts, ranking=ranking_)
+            context = ' [SEP] '.join(
+                [collectionX.get((pid, sid), '') for pid, sid in facts])
 
         assert len(pids_bag) == depth
 
         return stage2_L3x, pids_bag, stage1_preds
-
-            
-
-
-            
-                
-
-        
-            
-
-
-
-
-

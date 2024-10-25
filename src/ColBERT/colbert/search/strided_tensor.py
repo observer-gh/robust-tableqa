@@ -21,16 +21,19 @@ class StridedTensor(StridedTensorCore):
         if hasattr(cls, "loaded_extensions") or use_gpu:
             return
 
-        print_message(f"Loading segmented_lookup_cpp extension (set COLBERT_LOAD_TORCH_EXTENSION_VERBOSE=True for more info)...")
+        print_message(
+            f"Loading segmented_lookup_cpp extension (set COLBERT_LOAD_TORCH_EXTENSION_VERBOSE=True for more info)...")
         segmented_lookup_cpp = load(
             name="segmented_lookup_cpp",
             sources=[
                 os.path.join(
-                    pathlib.Path(__file__).parent.resolve(), "segmented_lookup.cpp"
-                ),
+                    pathlib.Path(__file__).parent.resolve(),
+                    "segmented_lookup.cpp"),
             ],
             extra_cflags=["-O3"],
-            verbose=os.getenv("COLBERT_LOAD_TORCH_EXTENSION_VERBOSE", "False") == "True",
+            verbose=os.getenv(
+                "COLBERT_LOAD_TORCH_EXTENSION_VERBOSE",
+                "False") == "True",
         )
         cls.segmented_lookup = segmented_lookup_cpp.segmented_lookup_cpp
 
@@ -46,7 +49,11 @@ class StridedTensor(StridedTensorCore):
         stride = lengths.max().item()
         offsets = torch.cumsum(lengths, dim=0) - lengths[0]
 
-        padding = torch.zeros(stride, *inner_dims, device=packed_tensor.device, dtype=packed_tensor.dtype)
+        padding = torch.zeros(
+            stride,
+            *inner_dims,
+            device=packed_tensor.device,
+            dtype=packed_tensor.dtype)
         packed_tensor = torch.cat((packed_tensor, padding))
 
         view = _create_view(packed_tensor, stride, inner_dims)[offsets]
@@ -57,7 +64,7 @@ class StridedTensor(StridedTensorCore):
     def _prepare_lookup(self, pids):
         if isinstance(pids, list):
             pids = torch.tensor(pids)
-        
+
         pids = pids.cpu()
 
         assert pids.dim() == 1
@@ -71,7 +78,7 @@ class StridedTensor(StridedTensorCore):
 
         if self.use_gpu:
             lengths = lengths.cuda()
-        
+
         return pids, lengths, offsets
 
     def lookup(self, pids, output='packed'):
@@ -94,18 +101,27 @@ class StridedTensor(StridedTensorCore):
 
             tensor = tensor[mask]
         else:
-            tensor = StridedTensor.segmented_lookup(self.tensor, pids, lengths, offsets)
+            tensor = StridedTensor.segmented_lookup(
+                self.tensor, pids, lengths, offsets)
 
         return tensor, lengths
 
     def lookup_staggered(self, pids, output='packed'):
-        permute_idxs, unordered_tensors, unordered_lengths, unordered_masks = self.lookup_packed_unordered(pids)
+        permute_idxs, unordered_tensors, unordered_lengths, unordered_masks = self.lookup_packed_unordered(
+            pids)
 
-        output_tensor = torch.empty(permute_idxs.size(0), self.max_stride, *self.inner_dims,
-                                    dtype=unordered_tensors[0].dtype, device=unordered_tensors[0].device)
+        output_tensor = torch.empty(
+            permute_idxs.size(0),
+            self.max_stride,
+            *self.inner_dims,
+            dtype=unordered_tensors[0].dtype,
+            device=unordered_tensors[0].device)
 
-        output_mask = torch.zeros(permute_idxs.size(0), self.max_stride,
-                                  dtype=unordered_masks[0].dtype, device=unordered_masks[0].device)
+        output_mask = torch.zeros(
+            permute_idxs.size(0),
+            self.max_stride,
+            dtype=unordered_masks[0].dtype,
+            device=unordered_masks[0].device)
 
         offset = 0
         for tensor, mask in zip(unordered_tensors, unordered_masks):
@@ -131,7 +147,8 @@ class StridedTensor(StridedTensorCore):
 
         lengths2 = lengths.clone()
         sentinel = self.strides[-1] + 1
-        order = torch.arange(pids.size(0), device='cuda' if self.use_gpu else 'cpu')
+        order = torch.arange(pids.size(0),
+                             device='cuda' if self.use_gpu else 'cpu')
 
         all_orders = []
         all_tensors = []
@@ -145,7 +162,8 @@ class StridedTensor(StridedTensorCore):
                 continue
 
             order_ = order[is_shorter]
-            tensor_, lengths_, mask_ = self._lookup_with_stride(stride, lengths[is_shorter], offsets[is_shorter])
+            tensor_, lengths_, mask_ = self._lookup_with_stride(
+                stride, lengths[is_shorter], offsets[is_shorter])
 
             all_orders.append(order_)
             all_tensors.append(tensor_)
@@ -154,7 +172,10 @@ class StridedTensor(StridedTensorCore):
 
             lengths2[is_shorter] = sentinel
 
-        assert lengths2.allclose(torch.tensor([sentinel], device='cuda' if self.use_gpu else 'cpu'))
+        assert lengths2.allclose(
+            torch.tensor(
+                [sentinel],
+                device='cuda' if self.use_gpu else 'cpu'))
 
         all_orders = torch.cat(all_orders)
         permute_idxs = torch.sort(all_orders).indices
@@ -208,14 +229,16 @@ if __name__ == '__main__':
     N = 100
     for _ in range(N):
         probed_centroids = torch.randint(0, ncentroids, size=(32, 8)).flatten()
-        emb_ids, emb_ids_lengths = ivf.lookup(probed_centroids).as_packed_tensor()
+        emb_ids, emb_ids_lengths = ivf.lookup(
+            probed_centroids).as_packed_tensor()
 
     torch.cuda.synchronize()
     print((time.time() - t) * 1000 / N, 'ms')
 
     print(emb_ids_lengths)
 
-    slow_result = flatten([ivf_list[idx] for idx in probed_centroids.flatten().tolist()])
+    slow_result = flatten([ivf_list[idx]
+                          for idx in probed_centroids.flatten().tolist()])
     print(emb_ids.size(), len(slow_result))
 
     for a, b in zip(slow_result, emb_ids.flatten().tolist()):

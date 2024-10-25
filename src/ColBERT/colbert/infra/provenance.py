@@ -15,7 +15,7 @@ class Provenance:
             try:
                 frame = f'{frame.filename}:{frame.lineno}:{frame.function}:   {frame.code_context[0].strip()}'
                 output.append(frame)
-            except:
+            except BaseException:
                 output.append(None)
 
         return output
@@ -32,12 +32,11 @@ if __name__ == '__main__':
     import ujson
     print(ujson.dumps(p, indent=4))
 
-
     class X:
         def __init__(self) -> None:
             pass
-        
+
         def toDict(self):
             return {'key': 1}
-    
+
     print(ujson.dumps(X()))

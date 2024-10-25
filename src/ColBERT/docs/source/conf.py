@@ -34,9 +34,9 @@ release = 'v2'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinx.ext.duration',
-    		  'sphinx.ext.doctest',
-    		  'sphinx.ext.autodoc',
-    		  'sphinx.ext.autosummary']
+              'sphinx.ext.doctest',
+              'sphinx.ext.autodoc',
+              'sphinx.ext.autosummary']
 
 autodoc_mock_imports = ["torch", "colbert", "tqdm"]
 

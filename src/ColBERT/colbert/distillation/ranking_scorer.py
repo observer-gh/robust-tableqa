@@ -18,8 +18,9 @@ class RankingScorer:
         self.ranking = ranking.tolist()
         self.__provenance = Provenance()
 
-        print_message(f"#> Loaded ranking with {len(self.ranking)} qid--pid pairs!")
-    
+        print_message(
+            f"#> Loaded ranking with {len(self.ranking)} qid--pid pairs!")
+
     def provenance(self):
         return self.__provenance
 

@@ -19,10 +19,10 @@ class IndexManager():
 def load_index_part(filename, verbose=True):
     part = torch.load(filename)
 
-    if type(part) == list:  # for backward compatibility
-        part = torch.cat(part)
 
-    return part
+if isinstance(part,     if)        part = torch.cat(part)
+
+return part
 
 
 def load_compressed_index_part(filename, dim, bits):
@@ -32,7 +32,8 @@ def load_compressed_index_part(filename, dim, bits):
         a.fromfile(f)
 
     n = len(a) // dim // bits
-    part = torch.tensor(np.frombuffer(a.tobytes(), dtype=np.uint8))  # TODO: isn't from_numpy(.) faster?
+    # TODO: isn't from_numpy(.) faster?
+    part = torch.tensor(np.frombuffer(a.tobytes(), dtype=np.uint8))
     part = part.reshape((n, int(np.ceil(dim * bits / 8))))
 
     return part

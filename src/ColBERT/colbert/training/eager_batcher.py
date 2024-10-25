@@ -15,7 +15,10 @@ class EagerBatcher():
 
         self.query_tokenizer = QueryTokenizer(args.query_maxlen)
         self.doc_tokenizer = DocTokenizer(args.doc_maxlen)
-        self.tensorize_triples = partial(tensorize_triples, self.query_tokenizer, self.doc_tokenizer)
+        self.tensorize_triples = partial(
+            tensorize_triples,
+            self.query_tokenizer,
+            self.doc_tokenizer)
 
         self.triples_path = args.triples
         self._reset_triples()
@@ -30,7 +33,8 @@ class EagerBatcher():
     def __next__(self):
         queries, positives, negatives = [], [], []
 
-        for line_idx, line in zip(range(self.bsize * self.nranks), self.reader):
+        for line_idx, line in zip(
+                range(self.bsize * self.nranks), self.reader):
             if (self.position + line_idx) % self.nranks != self.rank:
                 continue
 
@@ -50,13 +54,20 @@ class EagerBatcher():
     def collate(self, queries, positives, negatives):
         assert len(queries) == len(positives) == len(negatives) == self.bsize
 
-        return self.tensorize_triples(queries, positives, negatives, self.bsize // self.accumsteps)
+        return self.tensorize_triples(
+            queries,
+            positives,
+            negatives,
+            self.bsize //
+            self.accumsteps)
 
     def skip_to_batch(self, batch_idx, intended_batch_size):
         self._reset_triples()
 
-        Run.warn(f'Skipping to batch #{batch_idx} (with intended_batch_size = {intended_batch_size}) for training.')
+        Run.warn(
+            f'Skipping to batch #{batch_idx} (with intended_batch_size = {intended_batch_size}) for training.')
 
-        _ = [self.reader.readline() for _ in range(batch_idx * intended_batch_size)]
+        _ = [self.reader.readline()
+             for _ in range(batch_idx * intended_batch_size)]
 
         return None

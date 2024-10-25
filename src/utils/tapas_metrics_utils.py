@@ -27,32 +27,30 @@ import utils.text_utils as text_utils
 
 def _collect_cells_from_table(cell_coos,
                               table):
-  cell_values = []
-  for cell in cell_coos:
-    value = str(table.iat[cell[1], cell[0]])
-    cell_values.append(value)
-  return cell_values
+    cell_values = []
+    for cell in cell_coos:
+        value = str(table.iat[cell[1], cell[0]])
+        cell_values.append(value)
+    return cell_values
 
 
 def _safe_convert_to_float(value):
-  float_value = text_utils.convert_to_float(value)
-  if math.isnan(float_value):
-    raise ValueError('Value is NaN %s' % value)
-  return float_value
+    float_value = text_utils.convert_to_float(value)
+    if math.isnan(float_value):
+        raise ValueError('Value is NaN %s' % value)
+    return float_value
 
 
 def _parse_value(value):
-  """Parses a cell value to a number or lowercased string."""
-  try:
-    return _safe_convert_to_float(value)
-  except ValueError:
+    """Parses a cell value to a number or lowercased string."""
     try:
-      return value.lower()
+        return _safe_convert_to_float(value)
     except ValueError:
-      return value
+        try:
+            return value.lower()
+        except ValueError:
+            return value
 
 
 def _to_float32s(elements):
-  return tuple(text_utils.to_float32(v) for v in elements)
-
-
+    return tuple(text_utils.to_float32(v) for v in elements)

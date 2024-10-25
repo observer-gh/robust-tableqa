@@ -8,6 +8,7 @@ from utils.seed import set_seed
 from utils.cuda_stats import print_cuda_statistics
 from utils.dirs import *
 from utils.config_system import process_config
+
 from trainers import *
 from data_loader_manager import *
 import sys
@@ -34,7 +35,11 @@ from logging import Formatter
 logger = logging.getLogger(__name__)
 
 
-def get_checkpoint_model_path(saved_model_path, load_epoch=-1, load_best_model=False, load_model_path=""):
+def get_checkpoint_model_path(
+        saved_model_path,
+        load_epoch=-1,
+        load_best_model=False,
+        load_model_path=""):
     if load_model_path:
         path_save_model = load_model_path
         if not os.path.exists(path_save_model):
@@ -88,8 +93,8 @@ def initialization(args):
     assert args.mode in ['create_data', 'train', 'test', 'run']
     # ===== Process Config =======
     config = process_config(args)
-
-    print(config)
+    print('\n Printing config in init func!')
+    pprint(config)
     if config is None:
         return None
     # Create Dirs
@@ -124,7 +129,7 @@ def initialization(args):
             print("reset cancelled.")
 
     create_dirs(dirs)
-    print(dirs)
+    pprint(dirs)
 
     # ====== Set Logger =====
     log_file_format = "[%(levelname)s] - %(asctime)s - %(name)s : %(message)s (in %(pathname)s:%(lineno)d)"
@@ -141,8 +146,12 @@ def initialization(args):
     custom_output_formatter = CustomFormatter(custom_format=log_console_format)
     console_handler.setFormatter(custom_output_formatter)
 
-    info_file_handler = RotatingFileHandler(os.path.join(config.log_path, 'info.log'), maxBytes=10 ** 6,
-                                            backupCount=5)
+    info_file_handler = RotatingFileHandler(
+        os.path.join(
+            config.log_path,
+            'info.log'),
+        maxBytes=10 ** 6,
+        backupCount=5)
     info_file_handler.setLevel(logging.INFO)
     info_file_handler.setFormatter(Formatter(log_file_format))
 
@@ -151,8 +160,12 @@ def initialization(args):
     exp_file_handler.setLevel(logging.DEBUG)
     exp_file_handler.setFormatter(Formatter(log_file_format))
 
-    exp_errors_file_handler = RotatingFileHandler(os.path.join(config.log_path, 'error.log'), maxBytes=10 ** 6,
-                                                  backupCount=5)
+    exp_errors_file_handler = RotatingFileHandler(
+        os.path.join(
+            config.log_path,
+            'error.log'),
+        maxBytes=10 ** 6,
+        backupCount=5)
     exp_errors_file_handler.setLevel(logging.WARNING)
     exp_errors_file_handler.setFormatter(Formatter(log_file_format))
 
@@ -199,7 +212,6 @@ def initialization(args):
         # add modules as tags
         config.WANDB.tags.extend(config.model_config.modules)
 
-        print(f'@@@@{config.WANDB.entity}/{config.WANDB.project}\n\n\n')
         all_runs = wandb.Api(timeout=19).runs(
             path=f'{config.WANDB.entity}/{config.WANDB.project}',
             filters={"config.experiment_name": config.experiment_name})
@@ -214,29 +226,35 @@ def initialization(args):
             else:
                 config.WANDB.name = config.experiment_name
 
-    logger.info(f'Initialization done with the config: {str(config)}')
+    # logger.info(f'Initialization done with the config: {str(config)}')
+    # config pprinted at caller
+    logger.info(f'Initialization done with the config: ')
     return config
 
 
 def main(arg_list=None):
+    # parse args. This is just creating Namespace for args
     args = parse_args_sys()
-    print(args)
+    print('\nPrinting args')
+    pprint(args)
+    # do init using args Namesapce
     config = initialization(args)
     if config is None:
         raise ("No config file is obtained, exiting...")
         exit(0)
-
+    # now fill args with initialized ones
     args = config.args
 
-    pprint(config)
-
+    # seed handling
     if config.seed:
         set_seed(config.seed)
         seed_everything(config.seed, workers=True)
         # sets seeds for numpy, torch and python.random.
         logger.info(f'All seeds have been set to {config.seed}')
 
-    DataLoaderWrapper = globals()[config.data_loader.type]
+    # global namesapce access for data loader type
+    DataLoaderWrapper = globals()[
+        config.data_loader.type]
     if DataLoaderWrapper is not None:
         # init data loader
         data_loader_manager = DataLoaderWrapper(config)
@@ -271,7 +289,8 @@ def main(arg_list=None):
     callback_list.append(checkpoint_callback)
 
     # Early Stopping Callback
-    if 'save_top_k_metric' in config.train.additional.keys() and config.train.additional.get('early_stop_patience', 0) > 0:
+    if 'save_top_k_metric' in config.train.additional.keys(
+    ) and config.train.additional.get('early_stop_patience', 0) > 0:
         early_stop_callback = EarlyStopping(
             monitor=config.train.additional.save_top_k_metric,
             patience=config.train.additional.early_stop_patience,
@@ -293,7 +312,8 @@ def main(arg_list=None):
     else:
         # Wandb logger
         logger.info(
-            'init wandb logger with the following settings: {}'.format(config.WANDB))
+            'init wandb logger with the following settings: {}'.format(
+                config.WANDB))
         wandb_logger = WandbLogger(config=config, **config.WANDB)
         all_loggers.append(wandb_logger)
 
@@ -309,7 +329,9 @@ def main(arg_list=None):
         'plugins': plugins,
         'log_every_n_steps': 10,
         'check_val_every_n_epoch': None,
-        # this is to use global_step as the interval number: global_step * grad_accumulation = batch_idx (val_check_interval is based on batch_idx)
+        # this is to use global_step as the interval number: global_step *
+        # grad_accumulation = batch_idx (val_check_interval is based on
+        # batch_idx)
         'val_check_interval': config.valid.step_size * config.train.additional.gradient_accumulation_steps,
         # 'accelerator': "cpu",
         # 'strategy': "ddp",
@@ -393,21 +415,37 @@ def parse_args_sys(args_list=None):
 
     arg_parser.add_argument('--mode', type=str, default='',
                             help='create_data/train/test')
-    arg_parser.add_argument('--reset', action='store_true', default=False,
-                            help='Reset the corresponding folder under the experiment_name')
+    arg_parser.add_argument(
+        '--reset',
+        action='store_true',
+        default=False,
+        help='Reset the corresponding folder under the experiment_name')
 
-    arg_parser.add_argument('--experiment_name', type=str, default='',
-                            help='Experiment will be saved under /path/to/EXPERIMENT_FOLDER/$experiment_name$.')
+    arg_parser.add_argument(
+        '--experiment_name',
+        type=str,
+        default='',
+        help='Experiment will be saved under /path/to/EXPERIMENT_FOLDER/$experiment_name$.')
     arg_parser.add_argument("--tags", nargs='*', default=[],
                             help="Add tags to the wandb logger")
-    arg_parser.add_argument('--modules', type=str, nargs="+", default=[],
-                            help='Select modules for models. See training scripts for examples.')
+    arg_parser.add_argument(
+        '--modules',
+        type=str,
+        nargs="+",
+        default=[],
+        help='Select modules for models. See training scripts for examples.')
     arg_parser.add_argument('--log_prediction_tables', action='store_true',
                             default=False, help='Log prediction tables.')
-    arg_parser.add_argument('--override', action='store_true',
-                            default=False, help='Danger. Force yes for reset=1')
-    arg_parser.add_argument('--disable_wandb_logging', action='store_true',
-                            default=False, help='whether to disable wandb logging.')
+    arg_parser.add_argument(
+        '--override',
+        action='store_true',
+        default=False,
+        help='Danger. Force yes for reset=1')
+    arg_parser.add_argument(
+        '--disable_wandb_logging',
+        action='store_true',
+        default=False,
+        help='whether to disable wandb logging.')
 
     # ===== Testing Configuration ===== #
     arg_parser.add_argument('--test_batch_size', type=int, default=-1)

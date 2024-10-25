@@ -43,13 +43,15 @@ class RunSettings:
         value = list(map(int, value))
         value = sorted(list(set(value)))
 
-        assert all(device_idx in range(0, self.total_visible_gpus) for device_idx in value), value
+        assert all(device_idx in range(0, self.total_visible_gpus)
+                   for device_idx in value), value
 
         return value
 
     @property
     def index_root_(self):
-        return self.index_root or os.path.join(self.root, self.experiment, 'indexes/')
+        return self.index_root or os.path.join(
+            self.root, self.experiment, 'indexes/')
 
     @property
     def script_name_(self):
@@ -65,9 +67,8 @@ class RunSettings:
                 try:
                     commonpath = os.path.commonpath([script_path, root_path])
                     script_path = script_path[len(commonpath):]
-                except:
+                except BaseException:
                     pass
-
 
             assert script_path.endswith('.py')
             script_name = script_path.replace('/', '.').strip('.')[:-3]
@@ -80,7 +81,11 @@ class RunSettings:
 
     @property
     def path_(self):
-        return os.path.join(self.root, self.experiment, self.script_name_, self.name)
+        return os.path.join(
+            self.root,
+            self.experiment,
+            self.script_name_,
+            self.name)
 
     @property
     def device_(self):
@@ -106,7 +111,7 @@ class DocSettings:
 @dataclass
 class QuerySettings:
     query_maxlen: int = DefaultVal(32)
-    attend_to_mask_tokens : bool = DefaultVal(False)
+    attend_to_mask_tokens: bool = DefaultVal(False)
     interaction: str = DefaultVal('colbert')
 
 
@@ -126,7 +131,7 @@ class TrainingSettings:
 
     resume: bool = DefaultVal(False)
 
-    ## NEW:
+    # NEW:
     warmup: int = DefaultVal(None)
 
     warmup_bert: int = DefaultVal(None)
@@ -156,7 +161,9 @@ class IndexingSettings:
 
     @property
     def index_path_(self):
-        return self.index_path or os.path.join(self.index_root_, self.index_name)
+        return self.index_path or os.path.join(
+            self.index_root_, self.index_name)
+
 
 @dataclass
 class SearchSettings:
