@@ -89,15 +89,16 @@ class DataLoaderForTableQA(DataLoaderWrapper):
 
         datasets = None
 
+        # item ex. `test: 'TableQA_data/wtq/preprocessed_split_table_by_mixed_combination_test.arrow'`
         for split, split_file_path in module_config.config.path.items():
             split_file_path = os.path.join(
                 self.config.DATA_FOLDER, split_file_path)
 
             is_training = (split in ['train'])
 
-            if os.path.exists(split_file_path):
+            if os.path.exists(split_file_path):  # cache
                 dataset = load_from_disk(split_file_path)
-            else:
+            else:  # load from hugginface datasets
                 if not datasets:
                     datasets = load_dataset("wikitablequestions")
                 column_names = datasets[split].column_names
@@ -1731,6 +1732,7 @@ class DataLoaderForTableQA(DataLoaderWrapper):
 
         all_tables = {}
 
+        # ex. 'TableQA_data/e2e_wtq/preprocessed_tables.arrow'
         table_cache_path = os.path.join(
             self.config.DATA_FOLDER,
             module_config.config.path.tables)
@@ -1754,8 +1756,7 @@ class DataLoaderForTableQA(DataLoaderWrapper):
                     )
                     all_tables[table_id] = example
 
-        datasets = {}
-
+        datasets = {}  # why empty this?
         # bm25 result is not needed:
         # https://github.com/amazon-science/robust-tableqa/issues/3#issuecomment-1867822889
         if self.data.e2e_wtq_data.get('bm25_results', None) is None:
@@ -1769,6 +1770,7 @@ class DataLoaderForTableQA(DataLoaderWrapper):
                 with open(bm25_results_path, 'r') as bm25_results_file:
                     bm25_results = json.load(bm25_results_file)
 
+        # split the dataset for test, train, validation
         for split, split_path in module_config.config.data_path.items():
             split_path = os.path.join(self.config.DATA_FOLDER, split_path)
             logger.info(f"Loading {split} from {split_path}...")
@@ -1809,7 +1811,7 @@ class DataLoaderForTableQA(DataLoaderWrapper):
                         bm25_retrieved_item_ids = [i['id']
                                                    for i in bm25_retrieved_items]
                     else:
-                        logger.error(
+                        logger.warn(
                             f"{question_id} not found retrieved bm25 documents!")
                         bm25_retrieved_item_ids = []
 
